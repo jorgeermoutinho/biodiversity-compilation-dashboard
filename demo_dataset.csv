@@ -1,0 +1,23 @@
+name_used,name_accepted,genus,family,order,class,phylum,latitude,longitude,coordinates_original,source,source_label,year,month,day,publication_id,journal,pub_type
+Octopus vulgaris,Octopus vulgaris,Octopus,Octopodidae,Octopoda,Cephalopoda,Mollusca,38.72,-9.14,38°43'N 9°08'W,Pereira et al. 2021,PER21,2021,4,12,PUB01,Mar. Biol.,article
+Octopus vulgaris,Octopus vulgaris,Octopus,Octopodidae,Octopoda,Cephalopoda,Mollusca,38.55,-9.06,38°33'N 9°04'W,Pereira et al. 2021,PER21,2021,5,3,PUB01,Mar. Biol.,article
+Sepia officinalis,Sepia officinalis,Sepia,Sepiidae,Sepiida,Cephalopoda,Mollusca,37.02,-7.93,37°01'N 7°56'W,Nunes & Costa 2017,NUN17,2017,6,,PUB02,J. Mar. Sci.,article
+Sepia officinalis,Sepia officinalis,Sepia,Sepiidae,Sepiida,Cephalopoda,Mollusca,37.40,-8.15,,Nunes & Costa 2017,NUN17,2017,7,,PUB02,J. Mar. Sci.,article
+Maja squinado,Maja brachydactyla,Maja,Majidae,Decapoda,Malacostraca,Arthropoda,41.15,-8.62,41°09'N 8°37'W,Carvalho et al. 2018,CAR18,2018,3,22,PUB03,Crustaceana,article
+Cancer pagurus,Cancer pagurus,Cancer,Cancridae,Decapoda,Malacostraca,Arthropoda,41.02,-8.44,41°01'N 8°26'W,Carvalho et al. 2018,CAR18,2018,3,23,PUB03,Crustaceana,article
+Palinurus elephas,Palinurus elephas,Palinurus,Palinuridae,Decapoda,Malacostraca,Arthropoda,41.55,-8.41,41°33'N 8°25'W,Ferreira 2015,FER15,2015,,,PUB04,Fish. Res.,article
+Palinurus elephas,Palinurus elephas,Palinurus,Palinuridae,Decapoda,Malacostraca,Arthropoda,40.65,-8.65,,Ferreira 2015,FER15,2015,,,PUB04,Fish. Res.,article
+Mytilus galloprovincialis,Mytilus galloprovincialis,Mytilus,Mytilidae,Mytilida,Bivalvia,Mollusca,39.75,-8.81,39°45'N 8°49'W,Rodrigues 2019,ROD19,2019,2,14,PUB05,Aquaculture,article
+Mytilus galloprovincialis,Mytilus galloprovincialis,Mytilus,Mytilidae,Mytilida,Bivalvia,Mollusca,39.60,-8.65,39°36'N 8°39'W,Rodrigues 2019,ROD19,2019,2,15,PUB05,Aquaculture,article
+Ruditapes decussatus,Ruditapes decussatus,Ruditapes,Veneridae,Venerida,Bivalvia,Mollusca,39.85,-8.30,,Rodrigues 2019,ROD19,2019,3,,PUB05,Aquaculture,article
+Sparus aurata,Sparus aurata,Sparus,Sparidae,Perciformes,Actinopterygii,Chordata,38.50,-9.06,38°30'N 9°04'W,Alves 2016,ALV16,2016,8,5,PUB06,ICES J. Mar. Sci.,article
+Solea senegalensis,Solea senegalensis,Solea,Soleidae,Pleuronectiformes,Actinopterygii,Chordata,37.95,-8.83,37°57'N 8°50'W,Alves 2016,ALV16,2016,9,,PUB06,ICES J. Mar. Sci.,article
+Dicentrarchus labrax,Dicentrarchus labrax,Dicentrarchus,Moronidae,Perciformes,Actinopterygii,Chordata,41.30,-7.75,,Mendes 2022,MEN22,2022,1,18,PUB07,Mar. Ecol.,article
+Mugil cephalus,Mugil cephalus,Mugil,Mugilidae,Mugiliformes,Actinopterygii,Chordata,41.10,-7.90,41°06'N 7°54'W,Mendes 2022,MEN22,2022,2,3,PUB07,Mar. Ecol.,article
+Scomber scombrus,Scomber scombrus,Scomber,Scombridae,Perciformes,Actinopterygii,Chordata,40.20,-8.42,40°12'N 8°25'W,Santos & Lima 2020,SAN20,2020,6,11,PUB08,Fish. Oceanogr.,article
+Engraulis encrasicolus,Engraulis encrasicolus,Engraulis,Engraulidae,Clupeiformes,Actinopterygii,Chordata,40.30,-8.55,40°18'N 8°33'W,Santos & Lima 2020,SAN20,2020,6,12,PUB08,Fish. Oceanogr.,article
+Pagellus erythrinus,Pagellus erythrinus,Pagellus,Sparidae,Perciformes,Actinopterygii,Chordata,38.20,-9.30,,Santos & Lima 2020,SAN20,2020,7,,PUB08,Fish. Oceanogr.,article
+Octopus defilippi,Macrotritopus defilippi,Macrotritopus,Octopodidae,Octopoda,Cephalopoda,Mollusca,36.80,-7.50,36°48'N 7°30'W,Costa & Borges 2013,COS13,2013,9,4,PUB09,Cephalopod Res.,article
+Loligo vulgaris,Doryteuthis vulgaris,Doryteuthis,Loliginidae,Myopsida,Cephalopoda,Mollusca,36.90,-8.00,36°54'N 8°00'W,Costa & Borges 2013,COS13,2013,10,,PUB09,Cephalopod Res.,article
+Pecten maximus,Pecten maximus,Pecten,Pectinidae,Pectinida,Bivalvia,Mollusca,43.20,-8.90,43°12'N 8°54'W,López 2014,LOP14,2014,5,7,PUB10,Shellfish Res.,report
+Cerastoderma edule,Cerastoderma edule,Cerastoderma,Cardiidae,Cardiida,Bivalvia,Mollusca,43.35,-8.40,43°21'N 8°24'W,López 2014,LOP14,2014,5,8,PUB10,Shellfish Res.,report
