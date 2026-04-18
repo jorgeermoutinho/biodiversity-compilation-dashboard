@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Biodiversity Literature Dashboard</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg: #f5f2eb; --surface: #faf8f4; --surface2: #efeae0;
+  --text: #1c1a16; --muted: #6b6558; --accent: #2d5a3d;
+  --accent2: #8b4513; --accent3: #1a3a5c; --border: #d4cec2;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); }
+
+/* ── HEADER ── */
+header {
+  background: var(--accent); padding: 1rem 1.6rem;
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+}
+header h1 { font-family: 'DM Serif Display', serif; font-size: 1.4rem; color: #d9ead3; font-style: italic; }
+header .subtitle { font-size: 0.72rem; color: #8fba9a; font-family: 'DM Mono', monospace; }
+.hbtn {
+  font-family: 'DM Mono', monospace; font-size: 0.7rem; color: #8fba9a;
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px; padding: 4px 10px; cursor: pointer; transition: background 0.15s;
+}
+.hbtn:hover { background: rgba(255,255,255,0.2); }
+.header-btns { margin-left: auto; display: flex; gap: 8px; }
+
+/* ── STATS STRIP ── */
+.stats-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); border-bottom: 1px solid var(--border); }
+.stat-box { padding: 0.8rem 1.1rem; border-right: 1px solid var(--border); background: var(--surface); }
+.stat-box:last-child { border-right: none; }
+.stat-label { font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+.stat-value { font-family: 'DM Serif Display', serif; font-size: 1.5rem; color: var(--accent); line-height: 1; }
+.stat-sub { font-size: 0.65rem; color: var(--muted); margin-top: 2px; }
+
+/* ── FILTERS ── */
+.filters-bar {
+  display: flex; flex-wrap: wrap; gap: 8px; padding: 7px 14px;
+  background: var(--surface2); border-bottom: 1px solid var(--border); align-items: center;
+}
+.filters-bar label { font-size: 0.67rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+select, input[type=text] {
+  font-family: 'DM Sans', sans-serif; font-size: 0.75rem;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); border-radius: 4px; padding: 3px 7px; outline: none; height: 26px;
+}
+select:focus, input:focus { border-color: var(--accent); }
+.filter-count { margin-left: auto; font-family: 'DM Mono', monospace; font-size: 0.67rem; color: var(--muted); }
+
+/* ── CHARTS GRID (top section) ── */
+.charts-section {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* left column: all charts + pub-year + map stacked */
+.charts-left { border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+
+/* bottom row of small charts */
+.bottom-charts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* map inside left column */
+.map-section {
+  border-top: 1px solid var(--border);
+  position: relative;
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.map-toolbar {
+  display: flex; gap: 6px; padding: 6px 10px; background: var(--surface);
+  border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap;
+}
+.toggle-btn {
+  font-family: 'DM Mono', monospace; font-size: 0.67rem; color: var(--muted);
+  background: none; border: 1px solid var(--border); border-radius: 4px;
+  padding: 3px 9px; cursor: pointer; transition: all 0.15s;
+}
+.toggle-btn:hover { background: var(--surface2); }
+.toggle-btn.active { background: var(--accent); color: #d9ead3; border-color: var(--accent); }
+#map { width: 100%; height: 480px; }
+
+/* right: species/pub coverage — fixed height, scrolls internally */
+.charts-right {
+  display: flex; flex-direction: column;
+  border-left: 1px solid var(--border);
+}
+.coverage-header {
+  padding: 1rem 1.1rem 0.6rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.coverage-header h2 {
+  font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 2px;
+}
+.coverage-header p {
+  font-size: 0.65rem; color: var(--muted); font-family: 'DM Mono', monospace;
+}
+/* scrollable wrapper — fills the full right column, scrolls when bars overflow */
+.coverage-scroll-wrap {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 200px;
+}
+.coverage-scroll-wrap::-webkit-scrollbar { width: 4px; }
+.coverage-scroll-wrap::-webkit-scrollbar-track { background: transparent; }
+.coverage-scroll-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+/* the canvas wrapper grows to fit all bars */
+#coverage-canvas-wrap {
+  padding: 8px 1.1rem 1rem;
+  background: var(--surface);
+}
+
+/* generic chart panel */
+.chart-panel {
+  background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 1.1rem 0.9rem;
+}
+.chart-panel:last-child { border-bottom: none; }
+.chart-panel h2 {
+  font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
+}
+.bottom-chart-box { padding: 1rem 1.1rem; border-right: 1px solid var(--border); background: var(--surface); }
+.bottom-chart-box:last-child { border-right: none; }
+.bottom-chart-box h2 { font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+
+/* ── TAXONOMIC DRILLDOWN ── */
+.taxa-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.taxa-title { font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.taxa-breadcrumb { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.taxa-crumb {
+  font-family: 'DM Mono', monospace; font-size: 0.62rem; color: var(--accent);
+  cursor: pointer; text-decoration: underline; text-decoration-style: dotted;
+}
+.taxa-crumb:hover { color: var(--accent2); }
+.taxa-sep { font-size: 0.6rem; color: var(--muted); }
+.taxa-back {
+  margin-left: auto; font-family: 'DM Mono', monospace; font-size: 0.62rem;
+  color: var(--muted); background: none; border: 1px solid var(--border);
+  border-radius: 3px; padding: 2px 7px; cursor: pointer;
+}
+.taxa-back:hover { background: var(--surface2); }
+
+/* ── MAP LEGEND ── */
+#map-legend {
+  position: absolute; bottom: 28px; right: 8px;
+  background: rgba(250,248,244,0.93); border: 1px solid var(--border);
+  border-radius: 5px; padding: 6px 9px; font-family: 'DM Mono', monospace;
+  font-size: 0.62rem; color: var(--text); z-index: 500;
+  max-width: 170px; max-height: 220px; overflow-y: auto; display: none;
+}
+#map-legend .leg-item { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
+#map-legend .leg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── MAP OVERLAY ── */
+.status-overlay {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(245,242,235,0.93); display: flex; align-items: center;
+  justify-content: center; font-family: 'DM Mono', monospace; font-size: 0.78rem;
+  color: var(--muted); z-index: 999; text-align: center; padding: 2rem;
+  flex-direction: column; gap: 8px;
+}
+.dot-loader span {
+  display: inline-block; width: 6px; height: 6px; background: var(--accent);
+  border-radius: 50%; margin: 0 3px; animation: bounce 1.2s infinite;
+}
+.dot-loader span:nth-child(2) { animation-delay: 0.2s; }
+.dot-loader span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-8px)} }
+
+/* ── FREQ HINT ── */
+.freq-hint { font-size: 0.65rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 5px; }
+
+/* ── MODAL ── */
+.modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 2000; align-items: center; justify-content: center; }
+.modal-backdrop.open { display: flex; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.8rem; max-width: 520px; width: 92%; }
+.modal h3 { font-family: 'DM Serif Display', serif; font-size: 1.15rem; margin-bottom: 0.9rem; color: var(--accent); }
+.modal label { display: block; margin: 10px 0 3px; color: var(--muted); font-size: 0.72rem; font-family: 'DM Mono', monospace; }
+.modal input[type=text] { width: 100%; padding: 6px 9px; font-size: 0.8rem; }
+.modal-btns { display: flex; gap: 8px; margin-top: 1.2rem; justify-content: flex-end; }
+.btn-primary { background: var(--accent); color: #d9ead3; border: none; border-radius: 5px; padding: 7px 16px; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; cursor: pointer; }
+.btn-secondary { background: none; color: var(--muted); border: 1px solid var(--border); border-radius: 5px; padding: 7px 14px; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; cursor: pointer; }
+.hint { font-size: 0.68rem; color: var(--muted); margin-top: 4px; line-height: 1.55; }
+.col2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.mtabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+.mtab { font-family: 'DM Mono', monospace; font-size: 0.72rem; padding: 6px 14px; cursor: pointer; border: none; background: none; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.mtab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.mtab-panel { display: none; }
+.mtab-panel.active { display: block; }
+textarea.csv-paste { width: 100%; height: 150px; resize: vertical; font-family: 'DM Mono', monospace; font-size: 0.7rem; border: 1px solid var(--border); background: var(--surface2); color: var(--text); border-radius: 4px; padding: 8px; outline: none; line-height: 1.5; }
+textarea.csv-paste:focus { border-color: var(--accent); }
+.err-banner { display: none; background: #fff3cd; border: 1px solid #f0c040; border-radius: 5px; padding: 8px 12px; margin-top: 8px; font-family: 'DM Mono', monospace; font-size: 0.7rem; color: #7a5a00; line-height: 1.5; white-space: pre-wrap; }
+.err-banner.show { display: block; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 700px) {
+  .charts-section { grid-template-columns: 1fr; }
+  .charts-right { border-top: 1px solid var(--border); }
+  #map { height: 320px; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div>
+    <h1>Biodiversity Literature Dashboard</h1>
+    <div class="subtitle" id="last-updated">loading…</div>
+  </div>
+  <div class="header-btns">
+    <button class="hbtn" onclick="openModal()">⚙ configure source</button>
+  </div>
+</header>
+
+<!-- STATS -->
+<div class="stats-strip">
+  <div class="stat-box"><div class="stat-label">Records</div><div class="stat-value" id="s-total">—</div></div>
+  <div class="stat-box"><div class="stat-label">Species</div><div class="stat-value" id="s-species">—</div><div class="stat-sub" id="s-genera"></div></div>
+  <div class="stat-box"><div class="stat-label">Publications</div><div class="stat-value" id="s-pubs">—</div><div class="stat-sub" id="s-pubs-sub"></div></div>
+  <div class="stat-box"><div class="stat-label">Year range</div><div class="stat-value" id="s-years" style="font-size:1rem;padding-top:5px">—</div></div>
+  <div class="stat-box"><div class="stat-label">With coords</div><div class="stat-value" id="s-coords">—</div><div class="stat-sub" id="s-coords-pct"></div></div>
+  <div class="stat-box"><div class="stat-label">Phyla</div><div class="stat-value" id="s-phyla">—</div></div>
+  <div class="stat-box"><div class="stat-label">Families</div><div class="stat-value" id="s-families">—</div></div>
+</div>
+
+<!-- FILTERS -->
+<div class="filters-bar">
+  <label>Phylum</label>
+  <select id="f-phylum" onchange="applyFilters()"><option value="">All</option></select>
+  <label>Class</label>
+  <select id="f-class" onchange="applyFilters()"><option value="">All</option></select>
+  <label>Order</label>
+  <select id="f-order" onchange="applyFilters()"><option value="">All</option></select>
+  <label>Family</label>
+  <select id="f-family" onchange="applyFilters()"><option value="">All</option></select>
+  <label>Publication</label>
+  <select id="f-pub" onchange="applyFilters()"><option value="">All</option></select>
+  <label>Year</label>
+  <select id="f-year" onchange="applyFilters()"><option value="">All</option></select>
+  <label>Type</label>
+  <select id="f-pubtype" onchange="applyFilters()"><option value="">All</option></select>
+  <input type="text" id="f-search" placeholder="species / genus…" oninput="applyFilters()" style="width:120px">
+  <span class="filter-count" id="filter-count"></span>
+</div>
+
+<!-- CHARTS SECTION -->
+<div class="charts-section">
+
+  <!-- LEFT: stacked charts -->
+  <div class="charts-left">
+
+    <!-- 3x2 CHART GRID -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--border)">
+
+      <!-- Cell 1: Taxonomic drilldown -->
+      <div class="chart-panel" style="border-right:1px solid var(--border);border-bottom:none">
+        <div class="taxa-header">
+          <span class="taxa-title" id="taxa-title">Records by taxa: phylum</span>
+          <button class="taxa-back" id="taxa-back-btn" onclick="taxaDrillUp()" style="display:none">↑ back</button>
+        </div>
+        <div class="taxa-breadcrumb" id="taxa-breadcrumb"></div>
+        <canvas id="chart-taxa" height="140"></canvas>
+      </div>
+
+      <!-- Cell 2: Publication type -->
+      <div class="chart-panel" style="border-right:1px solid var(--border);border-bottom:none">
+        <h2>Publication type</h2>
+        <canvas id="chart-pubtype" height="140"></canvas>
+      </div>
+
+      <!-- Cell 3: Records per year -->
+      <div class="chart-panel" style="border-bottom:none">
+        <h2>Records per year</h2>
+        <canvas id="chart-time" height="140"></canvas>
+      </div>
+
+      <!-- Cell 4: Cumulative new species -->
+      <div class="chart-panel" style="border-right:1px solid var(--border);border-bottom:none;border-top:1px solid var(--border)">
+        <h2>Cumulative new species</h2>
+        <canvas id="chart-cumul" height="130"></canvas>
+      </div>
+
+      <!-- Cell 5: Species × publications frequency -->
+      <div class="chart-panel" style="border-right:1px solid var(--border);border-bottom:none;border-top:1px solid var(--border)">
+        <h2>Species × publications</h2>
+        <canvas id="chart-accum" height="130"></canvas>
+        <div class="freq-hint" id="accum-hint"></div>
+      </div>
+
+      <!-- Cell 6: Monthly distribution -->
+      <div class="chart-panel" style="border-bottom:none;border-top:1px solid var(--border)">
+        <h2>Monthly distribution</h2>
+        <canvas id="chart-month" height="130"></canvas>
+      </div>
+
+    </div>
+
+    <!-- Publications per year — full width of left column -->
+    <div class="chart-panel" style="border-bottom:none;border-top:1px solid var(--border)">
+      <h2>Publications per year</h2>
+      <canvas id="chart-pubyear" height="90"></canvas>
+    </div>
+
+    <!-- MAP inside left column -->
+    <div class="map-section">
+      <div class="map-toolbar">
+        <button class="toggle-btn active" id="btn-markers" onclick="setMapMode('markers')">Markers</button>
+        <button class="toggle-btn" id="btn-heat" onclick="setMapMode('heat')">Heatmap</button>
+        <span style="font-family:'DM Mono',monospace;font-size:0.67rem;color:var(--muted);margin-left:8px">Color by:</span>
+        <select id="color-by" onchange="applyFilters()" style="height:22px;font-size:0.66rem;padding:1px 5px">
+          <option value="phylum">Phylum</option>
+          <option value="family">Family</option>
+          <option value="pub">Publication</option>
+          <option value="pubtype">Pub type</option>
+        </select>
+        <span style="font-family:'DM Mono',monospace;font-size:0.67rem;margin-left:auto" id="map-coord-info"></span>
+      </div>
+      <div id="map"></div>
+      <div id="map-legend"></div>
+      <div class="status-overlay" id="map-overlay">
+        <div class="dot-loader"><span></span><span></span><span></span></div>
+        <div id="overlay-msg">Loading data…</div>
+      </div>
+    </div>
+
+  </div><!-- /charts-left -->
+
+  <!-- RIGHT: species/publication coverage -->
+  <div class="charts-right">
+    <div class="coverage-header">
+      <h2>Species / publication coverage</h2>
+      <p>unique species per publication</p>
+    </div>
+    <div class="coverage-scroll-wrap">
+      <div id="coverage-canvas-wrap">
+        <canvas id="chart-pub-coverage"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /charts-section -->
+
+<!-- CONFIG MODAL -->
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <h3>Data source</h3>
+    <div class="mtabs">
+      <button class="mtab active" id="tab-url-btn" onclick="switchTab('url')">Google Sheets URL</button>
+      <button class="mtab" id="tab-paste-btn" onclick="switchTab('paste')">Paste CSV</button>
+    </div>
+    <div class="mtab-panel active" id="tab-url">
+      <p style="color:var(--muted);font-size:0.75rem;line-height:1.6;margin-bottom:6px">
+        In Sheets: <b>File → Share → Publish to web → select tab → CSV → Publish</b>
+      </p>
+      <label>Published CSV URL</label>
+      <input type="text" id="cfg-url" placeholder="https://docs.google.com/spreadsheets/d/…/pub?output=csv">
+      <div class="hint">⚠ If opened from a local file, use the Paste CSV tab or run: <b>python -m http.server 8080</b></div>
+      <div class="err-banner" id="url-error"></div>
+    </div>
+    <div class="mtab-panel" id="tab-paste">
+      <p style="color:var(--muted);font-size:0.75rem;line-height:1.6;margin-bottom:6px">
+        In Sheets: <b>File → Download → CSV</b>, open in a text editor, select all, paste below.
+      </p>
+      <label>CSV content</label>
+      <textarea class="csv-paste" id="cfg-csv" placeholder="name_accepted,phylum,latitude,longitude,…"></textarea>
+      <div class="err-banner" id="paste-error"></div>
+    </div>
+    <div class="col2" style="margin-top:12px">
+      <div>
+        <label>Dashboard title (optional)</label>
+        <input type="text" id="cfg-title" placeholder="My biodiversity study">
+      </div>
+      <div>
+        <label>Min pubs per species (target)</label>
+        <input type="text" id="cfg-target" placeholder="3">
+      </div>
+    </div>
+    <div class="hint" style="margin-top:8px">
+      Columns: name_accepted, name_used, genus, family, order, class, phylum, latitude, longitude, coordinates_original, source, source_label, year, month, day, publication_id, journal, pub_type
+    </div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-secondary" onclick="loadDemo()">Load demo</button>
+      <button class="btn-primary" onclick="saveConfig()">Load data</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DEMO DATA ─────────────────────────────────────────────────────────────────
+const DEMO = [
+  {name_used:"Octopus vulgaris",name_accepted:"Octopus vulgaris",genus:"Octopus",family:"Octopodidae",order:"Octopoda",class:"Cephalopoda",phylum:"Mollusca",latitude:38.72,longitude:-9.14,coordinates_original:"38°43'N 9°08'W",source:"Pereira et al. 2021",source_label:"PER21",year:2021,month:4,day:12,publication_id:"PUB01",journal:"Mar. Biol.",pub_type:"article"},
+  {name_used:"Octopus vulgaris",name_accepted:"Octopus vulgaris",genus:"Octopus",family:"Octopodidae",order:"Octopoda",class:"Cephalopoda",phylum:"Mollusca",latitude:38.55,longitude:-9.06,coordinates_original:"38°33'N 9°04'W",source:"Pereira et al. 2021",source_label:"PER21",year:2021,month:5,day:3,publication_id:"PUB01",journal:"Mar. Biol.",pub_type:"article"},
+  {name_used:"Sepia officinalis",name_accepted:"Sepia officinalis",genus:"Sepia",family:"Sepiidae",order:"Sepiida",class:"Cephalopoda",phylum:"Mollusca",latitude:37.02,longitude:-7.93,coordinates_original:"37°01'N 7°56'W",source:"Nunes & Costa 2017",source_label:"NUN17",year:2017,month:6,day:null,publication_id:"PUB02",journal:"J. Mar. Sci.",pub_type:"article"},
+  {name_used:"Sepia officinalis",name_accepted:"Sepia officinalis",genus:"Sepia",family:"Sepiidae",order:"Sepiida",class:"Cephalopoda",phylum:"Mollusca",latitude:37.40,longitude:-8.15,coordinates_original:null,source:"Nunes & Costa 2017",source_label:"NUN17",year:2017,month:7,day:null,publication_id:"PUB02",journal:"J. Mar. Sci.",pub_type:"article"},
+  {name_used:"Maja squinado",name_accepted:"Maja brachydactyla",genus:"Maja",family:"Majidae",order:"Decapoda",class:"Malacostraca",phylum:"Arthropoda",latitude:41.15,longitude:-8.62,coordinates_original:"41°09'N 8°37'W",source:"Carvalho et al. 2018",source_label:"CAR18",year:2018,month:3,day:22,publication_id:"PUB03",journal:"Crustaceana",pub_type:"article"},
+  {name_used:"Cancer pagurus",name_accepted:"Cancer pagurus",genus:"Cancer",family:"Cancridae",order:"Decapoda",class:"Malacostraca",phylum:"Arthropoda",latitude:41.02,longitude:-8.44,coordinates_original:"41°01'N 8°26'W",source:"Carvalho et al. 2018",source_label:"CAR18",year:2018,month:3,day:23,publication_id:"PUB03",journal:"Crustaceana",pub_type:"article"},
+  {name_used:"Palinurus elephas",name_accepted:"Palinurus elephas",genus:"Palinurus",family:"Palinuridae",order:"Decapoda",class:"Malacostraca",phylum:"Arthropoda",latitude:41.55,longitude:-8.41,coordinates_original:"41°33'N 8°25'W",source:"Ferreira 2015",source_label:"FER15",year:2015,month:null,day:null,publication_id:"PUB04",journal:"Fish. Res.",pub_type:"article"},
+  {name_used:"Palinurus elephas",name_accepted:"Palinurus elephas",genus:"Palinurus",family:"Palinuridae",order:"Decapoda",class:"Malacostraca",phylum:"Arthropoda",latitude:40.65,longitude:-8.65,coordinates_original:null,source:"Ferreira 2015",source_label:"FER15",year:2015,month:null,day:null,publication_id:"PUB04",journal:"Fish. Res.",pub_type:"article"},
+  {name_used:"Mytilus galloprovincialis",name_accepted:"Mytilus galloprovincialis",genus:"Mytilus",family:"Mytilidae",order:"Mytilida",class:"Bivalvia",phylum:"Mollusca",latitude:39.75,longitude:-8.81,coordinates_original:"39°45'N 8°49'W",source:"Rodrigues 2019",source_label:"ROD19",year:2019,month:2,day:14,publication_id:"PUB05",journal:"Aquaculture",pub_type:"article"},
+  {name_used:"Mytilus galloprovincialis",name_accepted:"Mytilus galloprovincialis",genus:"Mytilus",family:"Mytilidae",order:"Mytilida",class:"Bivalvia",phylum:"Mollusca",latitude:39.60,longitude:-8.65,coordinates_original:"39°36'N 8°39'W",source:"Rodrigues 2019",source_label:"ROD19",year:2019,month:2,day:15,publication_id:"PUB05",journal:"Aquaculture",pub_type:"article"},
+  {name_used:"Ruditapes decussatus",name_accepted:"Ruditapes decussatus",genus:"Ruditapes",family:"Veneridae",order:"Venerida",class:"Bivalvia",phylum:"Mollusca",latitude:39.85,longitude:-8.30,coordinates_original:null,source:"Rodrigues 2019",source_label:"ROD19",year:2019,month:3,day:null,publication_id:"PUB05",journal:"Aquaculture",pub_type:"article"},
+  {name_used:"Sparus aurata",name_accepted:"Sparus aurata",genus:"Sparus",family:"Sparidae",order:"Perciformes",class:"Actinopterygii",phylum:"Chordata",latitude:38.50,longitude:-9.06,coordinates_original:"38°30'N 9°04'W",source:"Alves 2016",source_label:"ALV16",year:2016,month:8,day:5,publication_id:"PUB06",journal:"ICES J. Mar. Sci.",pub_type:"article"},
+  {name_used:"Solea senegalensis",name_accepted:"Solea senegalensis",genus:"Solea",family:"Soleidae",order:"Pleuronectiformes",class:"Actinopterygii",phylum:"Chordata",latitude:37.95,longitude:-8.83,coordinates_original:"37°57'N 8°50'W",source:"Alves 2016",source_label:"ALV16",year:2016,month:9,day:null,publication_id:"PUB06",journal:"ICES J. Mar. Sci.",pub_type:"article"},
+  {name_used:"Dicentrarchus labrax",name_accepted:"Dicentrarchus labrax",genus:"Dicentrarchus",family:"Moronidae",order:"Perciformes",class:"Actinopterygii",phylum:"Chordata",latitude:41.30,longitude:-7.75,coordinates_original:null,source:"Mendes 2022",source_label:"MEN22",year:2022,month:1,day:18,publication_id:"PUB07",journal:"Mar. Ecol.",pub_type:"article"},
+  {name_used:"Mugil cephalus",name_accepted:"Mugil cephalus",genus:"Mugil",family:"Mugilidae",order:"Mugiliformes",class:"Actinopterygii",phylum:"Chordata",latitude:41.10,longitude:-7.90,coordinates_original:"41°06'N 7°54'W",source:"Mendes 2022",source_label:"MEN22",year:2022,month:2,day:3,publication_id:"PUB07",journal:"Mar. Ecol.",pub_type:"article"},
+  {name_used:"Scomber scombrus",name_accepted:"Scomber scombrus",genus:"Scomber",family:"Scombridae",order:"Perciformes",class:"Actinopterygii",phylum:"Chordata",latitude:40.20,longitude:-8.42,coordinates_original:"40°12'N 8°25'W",source:"Santos & Lima 2020",source_label:"SAN20",year:2020,month:6,day:11,publication_id:"PUB08",journal:"Fish. Oceanogr.",pub_type:"article"},
+  {name_used:"Engraulis encrasicolus",name_accepted:"Engraulis encrasicolus",genus:"Engraulis",family:"Engraulidae",order:"Clupeiformes",class:"Actinopterygii",phylum:"Chordata",latitude:40.30,longitude:-8.55,coordinates_original:"40°18'N 8°33'W",source:"Santos & Lima 2020",source_label:"SAN20",year:2020,month:6,day:12,publication_id:"PUB08",journal:"Fish. Oceanogr.",pub_type:"article"},
+  {name_used:"Pagellus erythrinus",name_accepted:"Pagellus erythrinus",genus:"Pagellus",family:"Sparidae",order:"Perciformes",class:"Actinopterygii",phylum:"Chordata",latitude:38.20,longitude:-9.30,coordinates_original:null,source:"Santos & Lima 2020",source_label:"SAN20",year:2020,month:7,day:null,publication_id:"PUB08",journal:"Fish. Oceanogr.",pub_type:"article"},
+  {name_used:"Octopus defilippi",name_accepted:"Macrotritopus defilippi",genus:"Macrotritopus",family:"Octopodidae",order:"Octopoda",class:"Cephalopoda",phylum:"Mollusca",latitude:36.80,longitude:-7.50,coordinates_original:"36°48'N 7°30'W",source:"Costa & Borges 2013",source_label:"COS13",year:2013,month:9,day:4,publication_id:"PUB09",journal:"Cephalopod Res.",pub_type:"article"},
+  {name_used:"Loligo vulgaris",name_accepted:"Doryteuthis vulgaris",genus:"Doryteuthis",family:"Loliginidae",order:"Myopsida",class:"Cephalopoda",phylum:"Mollusca",latitude:36.90,longitude:-8.00,coordinates_original:"36°54'N 8°00'W",source:"Costa & Borges 2013",source_label:"COS13",year:2013,month:10,day:null,publication_id:"PUB09",journal:"Cephalopod Res.",pub_type:"article"},
+  {name_used:"Pecten maximus",name_accepted:"Pecten maximus",genus:"Pecten",family:"Pectinidae",order:"Pectinida",class:"Bivalvia",phylum:"Mollusca",latitude:43.20,longitude:-8.90,coordinates_original:"43°12'N 8°54'W",source:"López 2014",source_label:"LOP14",year:2014,month:5,day:7,publication_id:"PUB10",journal:"Shellfish Res.",pub_type:"report"},
+  {name_used:"Cerastoderma edule",name_accepted:"Cerastoderma edule",genus:"Cerastoderma",family:"Cardiidae",order:"Cardiida",class:"Bivalvia",phylum:"Mollusca",latitude:43.35,longitude:-8.40,coordinates_original:"43°21'N 8°24'W",source:"López 2014",source_label:"LOP14",year:2014,month:5,day:8,publication_id:"PUB10",journal:"Shellfish Res.",pub_type:"report"},
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let config = JSON.parse(localStorage.getItem('bio_cfg4') || '{}');
+let allRecords = [];
+let mapMode = 'markers';
+let leafMap, markerLayer, heatLayer;
+let charts = {};
+
+// Taxonomic drilldown state
+const TAXA_LEVELS = ['phylum','class','order','family'];
+let taxaLevel = 0;           // index into TAXA_LEVELS
+let taxaFilters = [];        // [{level:'phylum', value:'Mollusca'}, …]
+let currentFilteredRec = []; // records after global filters, used by taxa drill
+
+const PALETTE = [
+  '#2d5a3d','#8b4513','#1a3a5c','#6b6558','#b5703a','#3a6b5a',
+  '#5c3a1a','#3a4a6b','#7a5c3a','#4a6b3a','#3a5c6b','#6b3a5c',
+  '#5a3d6b','#3d6b5a','#6b5a3d','#1c4a2a'
+];
+
+function colorFor(val, arr) {
+  const u = [...new Set(arr)].sort();
+  const i = u.indexOf(val);
+  return PALETTE[i >= 0 ? i % PALETTE.length : 0];
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  leafMap = L.map('map', {zoomControl:true});
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution:'© OpenStreetMap © CartoDB', maxZoom:18
+  }).addTo(leafMap);
+  markerLayer = L.layerGroup().addTo(leafMap);
+
+  if (config.url) loadFromURL(config.url);
+  else loadData(DEMO, true);
+});
+
+// ── LOAD ──────────────────────────────────────────────────────────────────────
+async function loadFromURL(url) {
+  showOverlay('Fetching sheet…');
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    parseAndLoad(text, false);
+  } catch(e) {
+    hideOverlay();
+    let msg = e.message;
+    if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('CORS')) {
+      msg = 'CORS error — browser blocked the request from a local file.\nUse the Paste CSV tab, or open via: python -m http.server 8080';
+    }
+    const b = document.getElementById('url-error');
+    b.textContent = '⚠ ' + msg; b.classList.add('show');
+    openModal();
+  }
+}
+
+function loadFromPaste(csv) {
+  if (!csv.trim()) {
+    const b = document.getElementById('paste-error');
+    b.textContent = '⚠ Nothing pasted.'; b.classList.add('show');
+    return;
+  }
+  parseAndLoad(csv, false);
+}
+
+function parseAndLoad(csvText, isDemo) {
+  const parsed = Papa.parse(csvText, {header:true, skipEmptyLines:true});
+  const rows = parsed.data.map(normalise);
+  const valid = rows.filter(r => r.name_accepted || r.genus || r.phylum);
+  if (!valid.length) {
+    const b = document.getElementById('paste-error');
+    b.textContent = '⚠ No valid rows — check column names match the list below.';
+    b.classList.add('show');
+    hideOverlay(); openModal(); return;
+  }
+  loadData(valid, isDemo);
+  closeModal();
+}
+
+function normalise(r) {
+  const k = {};
+  Object.keys(r).forEach(key => {
+    const clean = key.toLowerCase().trim().replace(/ /g,'_');
+    k[clean] = (r[key]||'').toString().trim();
+  });
+
+  const parseDeg = s => {
+    if (!s || s === '' || s === 'NA' || s === 'N/A' || s === 'null' || s === 'undefined') return NaN;
+    let clean = s.trim();
+    // EU decimal comma (only replace if no dot present)
+    if (clean.indexOf('.') === -1 && clean.indexOf(',') !== -1) clean = clean.replace(',', '.');
+    clean = clean.replace(/,/g, ''); // remove thousands separators
+    const val = parseFloat(clean);
+    return isNaN(val) ? NaN : val;
+  };
+
+  // Accept multiple possible column name spellings incl. "lalitude" typo
+  const lat = parseDeg(k.latitude || k.lalitude || k.lat || k.latiitude || k.latitute || '');
+  const lon = parseDeg(k.longitude || k.longitute || k.lon || k.long || k.lng || '');
+
+  // First-load debug: log first 3 rows to console so user can verify
+  if (!normalise._logged) {
+    normalise._count = (normalise._count || 0) + 1;
+    if (normalise._count <= 3) {
+      console.log('[biodash] row', normalise._count, '| raw lat key found:', 
+        Object.keys(r).find(x => x.toLowerCase().trim().match(/la[lt]i/)) || 'NONE',
+        '| parsed lat:', lat, 'lon:', lon);
+    }
+    if (normalise._count === 3) normalise._logged = true;
+  }
+
+  return {
+    name_used:            k.name_used || '',
+    name_accepted:        k.name_accepted || k.name || '',
+    genus:                k.genus || '',
+    family:               k.family || '',
+    order:                k.order || '',
+    class:                k.class || '',
+    phylum:               k.phylum || '',
+    latitude:             lat,
+    longitude:            lon,
+    coordinates_original: k.coordinates_original || '',
+    source:               k.source || '',
+    source_label:         k.source_label || k.source || '',
+    year:                 parseInt(k.year)  || null,
+    month:                parseInt(k.month) || null,
+    day:                  parseInt(k.day)   || null,
+    publication_id:       k.publication_id || k.pub_id || '',
+    journal:              k.journal || '',
+    pub_type:             k.pub_type || k.pubtype || '',
+  };
+}
+
+function loadData(rows, isDemo) {
+  allRecords = rows;
+  taxaLevel = 0; taxaFilters = [];
+  if (config.title) document.querySelector('header h1').textContent = config.title;
+  document.getElementById('last-updated').textContent =
+    (isDemo ? '⚠ demo data — ' : '✓ loaded — ') + new Date().toLocaleTimeString() +
+    (isDemo ? ' — click "⚙ configure source" to connect your sheet' : '');
+  populateFilters();
+  applyFilters();
+  hideOverlay();
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────────────────
+function uniq(arr) { return [...new Set(arr.filter(v => v !== null && v !== undefined && v !== ''))].sort(); }
+
+function populateFilters() {
+  const fill = (id, vals) => {
+    const el = document.getElementById(id), prev = el.value;
+    el.innerHTML = '<option value="">All</option>' + vals.map(v=>`<option>${v}</option>`).join('');
+    if (vals.includes(prev)) el.value = prev;
+  };
+  fill('f-phylum',  uniq(allRecords.map(r=>r.phylum)));
+  fill('f-class',   uniq(allRecords.map(r=>r.class)));
+  fill('f-order',   uniq(allRecords.map(r=>r.order)));
+  fill('f-family',  uniq(allRecords.map(r=>r.family)));
+  fill('f-pub',     uniq(allRecords.map(r=>r.source_label)));
+  fill('f-year',    uniq(allRecords.map(r=>r.year).filter(Boolean).map(String)));
+  fill('f-pubtype', uniq(allRecords.map(r=>r.pub_type)));
+}
+
+function getFiltered() {
+  const fP  = document.getElementById('f-phylum').value;
+  const fC  = document.getElementById('f-class').value;
+  const fO  = document.getElementById('f-order').value;
+  const fF  = document.getElementById('f-family').value;
+  const fPb = document.getElementById('f-pub').value;
+  const fY  = document.getElementById('f-year').value;
+  const fT  = document.getElementById('f-pubtype').value;
+  const fS  = document.getElementById('f-search').value.toLowerCase();
+  return allRecords.filter(r =>
+    (!fP  || r.phylum       === fP)  &&
+    (!fC  || r.class        === fC)  &&
+    (!fO  || r.order        === fO)  &&
+    (!fF  || r.family       === fF)  &&
+    (!fPb || r.source_label === fPb) &&
+    (!fY  || String(r.year) === fY)  &&
+    (!fT  || r.pub_type     === fT)  &&
+    (!fS  || r.name_accepted.toLowerCase().includes(fS) ||
+             r.genus.toLowerCase().includes(fS) ||
+             r.source.toLowerCase().includes(fS))
+  );
+}
+
+function applyFilters() {
+  const rec = getFiltered();
+  currentFilteredRec = rec;
+  document.getElementById('filter-count').textContent = rec.length + ' records shown';
+  renderStats(rec);
+  renderMap(rec);
+  renderCharts(rec);
+  // reset taxa drilldown when global filters change
+  taxaLevel = 0; taxaFilters = [];
+  renderTaxaDrilldown(rec);
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+function renderStats(rec) {
+  const coords = rec.filter(r=>isFinite(r.latitude)&&isFinite(r.longitude));
+  const years  = rec.map(r=>r.year).filter(Boolean);
+  document.getElementById('s-total').textContent    = rec.length;
+  document.getElementById('s-species').textContent  = uniq(rec.map(r=>r.name_accepted)).length;
+  document.getElementById('s-genera').textContent   = uniq(rec.map(r=>r.genus)).length + ' genera';
+  const pubsById    = uniq(rec.map(r=>r.publication_id).filter(Boolean)).length;
+  const pubsByLabel = uniq(rec.map(r=>r.source_label).filter(Boolean)).length;
+  // Use whichever column has more unique values (more informative)
+  const pubCount = Math.max(pubsById, pubsByLabel);
+  const pubCol   = pubsById >= pubsByLabel ? 'publication_id' : 'source_label';
+  document.getElementById('s-pubs').textContent     = pubCount;
+  document.getElementById('s-pubs-sub').textContent = `via ${pubCol}`;
+  document.getElementById('s-years').textContent    = years.length ? Math.min(...years)+'–'+Math.max(...years) : '—';
+  document.getElementById('s-coords').textContent   = coords.length;
+  document.getElementById('s-coords-pct').textContent = rec.length ? (coords.length/rec.length*100).toFixed(0)+'%' : '';
+  document.getElementById('s-phyla').textContent    = uniq(rec.map(r=>r.phylum)).length;
+  document.getElementById('s-families').textContent = uniq(rec.map(r=>r.family)).length;
+
+  // Show coord info in map toolbar
+  const noCoords = rec.length - coords.length;
+  const coordInfo = document.getElementById('map-coord-info');
+  if (coords.length === 0 && rec.length > 0) {
+    coordInfo.textContent = '⚠ no coordinates found — check column names (expected: latitude, longitude)';
+    coordInfo.style.color = '#8b4513';
+  } else if (noCoords > 0) {
+    coordInfo.textContent = `${noCoords} record(s) without coordinates`;
+    coordInfo.style.color = '#6b6558';
+  } else {
+    coordInfo.textContent = `${coords.length} points plotted`;
+    coordInfo.style.color = '#2d5a3d';
+  }
+}
+
+// ── TAXONOMIC DRILLDOWN ───────────────────────────────────────────────────────
+function getTaxaFiltered(baseRec) {
+  let r = baseRec;
+  taxaFilters.forEach(f => { r = r.filter(x => x[f.level] === f.value); });
+  return r;
+}
+
+function renderTaxaDrilldown(baseRec) {
+  const level = TAXA_LEVELS[taxaLevel];
+  const rec   = getTaxaFiltered(baseRec);
+
+  // Title
+  document.getElementById('taxa-title').textContent =
+    'Records by taxa: ' + level;
+
+  // Breadcrumb
+  const bc = document.getElementById('taxa-breadcrumb');
+  if (taxaFilters.length) {
+    bc.innerHTML = taxaFilters.map((f,i) =>
+      `<span class="taxa-crumb" onclick="taxaDrillTo(${i})">${f.value}</span>
+       ${i < taxaFilters.length-1 ? '<span class="taxa-sep">›</span>' : ''}`
+    ).join('') + '<span class="taxa-sep">›</span>';
+  } else {
+    bc.innerHTML = '';
+  }
+  document.getElementById('taxa-back-btn').style.display = taxaLevel > 0 ? 'block' : 'none';
+
+  // Count by current level
+  const countMap = {};
+  rec.forEach(r => { if(r[level]) countMap[r[level]] = (countMap[r[level]]||0)+1; });
+  const keys = Object.keys(countMap).sort((a,b)=>countMap[b]-countMap[a]);
+  const vals = keys.map(k=>countMap[k]);
+  const colors = keys.map((_,i)=>PALETTE[i%PALETTE.length]);
+
+  if (charts['taxa']) { charts['taxa'].destroy(); delete charts['taxa']; }
+  charts['taxa'] = new Chart(document.getElementById('chart-taxa'), {
+    type: 'doughnut',
+    data: {
+      labels: keys,
+      datasets: [{data: vals, backgroundColor: colors, borderWidth: 2, borderColor: '#faf8f4'}]
+    },
+    options: {
+      responsive: true,
+      cutout: '52%',
+      plugins: {
+        legend: {display: true, position: 'right', labels: {font:{family:'DM Mono',size:9}, color:'#6b6558', boxWidth:10, padding:6}},
+        tooltip: {
+          titleFont:{family:'DM Sans',size:11}, bodyFont:{family:'DM Mono',size:10},
+          callbacks: { label: c => `${c.label}: ${c.raw} records` }
+        }
+      },
+      onClick: (evt, elements) => {
+        if (!elements.length) return;
+        if (taxaLevel >= TAXA_LEVELS.length - 1) return; // already at family
+        const clickedLabel = keys[elements[0].index];
+        taxaFilters.push({level: TAXA_LEVELS[taxaLevel], value: clickedLabel});
+        taxaLevel++;
+        renderTaxaDrilldown(currentFilteredRec);
+      }
+    }
+  });
+
+  // cursor hint
+  const canvas = document.getElementById('chart-taxa');
+  canvas.style.cursor = taxaLevel < TAXA_LEVELS.length - 1 ? 'pointer' : 'default';
+  canvas.title = taxaLevel < TAXA_LEVELS.length - 1 ? 'Click a slice to drill down' : '';
+}
+
+function taxaDrillUp() {
+  if (taxaLevel === 0) return;
+  taxaLevel--;
+  taxaFilters.pop();
+  renderTaxaDrilldown(currentFilteredRec);
+}
+
+function taxaDrillTo(filterIndex) {
+  // go back to a specific breadcrumb level
+  taxaFilters = taxaFilters.slice(0, filterIndex + 1);
+  taxaLevel = filterIndex + 1;
+  renderTaxaDrilldown(currentFilteredRec);
+}
+
+// ── MAP ───────────────────────────────────────────────────────────────────────
+function setMapMode(mode) {
+  mapMode = mode;
+  document.getElementById('btn-markers').classList.toggle('active', mode==='markers');
+  document.getElementById('btn-heat').classList.toggle('active', mode==='heat');
+  applyFilters();
+}
+
+function renderMap(rec) {
+  markerLayer.clearLayers();
+  if (heatLayer) { leafMap.removeLayer(heatLayer); heatLayer = null; }
+  document.getElementById('map-legend').style.display = 'none';
+
+  const withCoords = rec.filter(r=>isFinite(r.latitude)&&isFinite(r.longitude));
+  if (!withCoords.length) return;
+
+  if (mapMode === 'heat') {
+    heatLayer = L.heatLayer(withCoords.map(r=>[r.latitude,r.longitude,1]), {radius:22,blur:16,maxZoom:12});
+    heatLayer.addTo(leafMap);
+  } else {
+    const colorBy = document.getElementById('color-by').value;
+    const keyFn = r => ({phylum:r.phylum, family:r.family, pub:r.source_label, pubtype:r.pub_type}[colorBy]||r.phylum);
+    const allVals = withCoords.map(keyFn);
+
+    withCoords.forEach(r => {
+      const col = colorFor(keyFn(r), allVals);
+      const icon = L.divIcon({
+        className:'',
+        html:`<div style="width:11px;height:11px;background:${col};border:2px solid rgba(255,255,255,0.85);border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.35)"></div>`,
+        iconSize:[11,11], iconAnchor:[5,5]
+      });
+      const popup = `
+        <b style="font-family:'DM Sans',sans-serif;font-style:italic">${r.name_accepted||'—'}</b><br>
+        ${r.name_used !== r.name_accepted ? `<span style="font-size:11px;color:#6b6558">as: <i>${r.name_used}</i></span><br>` : ''}
+        <span style="font-size:11px;font-family:'DM Mono',monospace;color:#6b6558">
+          ${[r.family,r.phylum].filter(Boolean).join(' · ')}<br>
+          ${r.source_label||''} (${r.year||'?'})<br>
+          ${r.coordinates_original ? r.coordinates_original+'<br>' : ''}
+          lat ${r.latitude.toFixed(4)}, lon ${r.longitude.toFixed(4)}
+        </span>`;
+      L.marker([r.latitude, r.longitude], {icon})
+       .bindPopup(popup, {maxWidth:230})
+       .addTo(markerLayer);
+    });
+
+    // legend
+    const uVals = [...new Set(allVals)].sort();
+    if (uVals.length <= 18) {
+      const leg = document.getElementById('map-legend');
+      leg.innerHTML = uVals.map(v=>`
+        <div class="leg-item">
+          <div class="leg-dot" style="background:${colorFor(v,allVals)}"></div>
+          <span>${v||'unknown'}</span>
+        </div>`).join('');
+      leg.style.display = 'block';
+    }
+  }
+
+  const group = L.featureGroup(markerLayer.getLayers());
+  if (group.getLayers().length) leafMap.fitBounds(group.getBounds().pad(0.12));
+}
+
+// ── CHART OPTIONS ─────────────────────────────────────────────────────────────
+const COPTS = {
+  responsive:true,
+  plugins:{
+    legend:{display:false},
+    tooltip:{titleFont:{family:'DM Sans',size:11},bodyFont:{family:'DM Mono',size:10}}
+  },
+  scales:{
+    x:{ticks:{font:{family:'DM Mono',size:9},color:'#6b6558'},grid:{color:'rgba(0,0,0,.04)'}},
+    y:{ticks:{font:{family:'DM Mono',size:9},color:'#6b6558'},grid:{color:'rgba(0,0,0,.05)'},beginAtZero:true}
+  }
+};
+const COPTS_PIE = {
+  responsive:true,
+  plugins:{
+    legend:{display:true,labels:{font:{family:'DM Mono',size:9},color:'#6b6558',boxWidth:10,padding:7}},
+    tooltip:{titleFont:{family:'DM Sans',size:11},bodyFont:{family:'DM Mono',size:10}}
+  }
+};
+
+function dc(key) { if(charts[key]){charts[key].destroy();delete charts[key];} }
+
+// ── CHARTS ────────────────────────────────────────────────────────────────────
+function renderCharts(rec) {
+
+  // 1. PUBLICATION TYPE PIE
+  dc('pubtype');
+  const ptMap={};
+  rec.forEach(r=>{ if(r.pub_type) ptMap[r.pub_type]=(ptMap[r.pub_type]||0)+1; });
+  const ptKeys=Object.keys(ptMap);
+  charts['pubtype']=new Chart(document.getElementById('chart-pubtype'),{
+    type:'pie',
+    data:{labels:ptKeys,datasets:[{data:ptKeys.map(k=>ptMap[k]),backgroundColor:ptKeys.map((_,i)=>PALETTE[(i+4)%PALETTE.length]),borderWidth:2,borderColor:'#faf8f4'}]},
+    options:COPTS_PIE
+  });
+
+  // 2. RECORDS PER YEAR
+  dc('time');
+  const yrMap={};
+  rec.forEach(r=>{ if(r.year) yrMap[r.year]=(yrMap[r.year]||0)+1; });
+  const yrKeys=Object.keys(yrMap).sort();
+  charts['time']=new Chart(document.getElementById('chart-time'),{
+    type:'bar',
+    data:{labels:yrKeys,datasets:[{data:yrKeys.map(y=>yrMap[y]),backgroundColor:'#2d5a3d',borderRadius:3,barPercentage:0.7}]},
+    options:{...COPTS}
+  });
+
+  // 3. CUMULATIVE NEW SPECIES by year
+  dc('cumul');
+  const sorted=[...rec].sort((a,b)=>(a.year||9999)-(b.year||9999));
+  const seenSp=new Set(); const cyrMap={};
+  sorted.forEach(r=>{ if(r.year&&r.name_accepted){ seenSp.add(r.name_accepted); cyrMap[r.year]=seenSp.size; }});
+  const cKeys=Object.keys(cyrMap).sort();
+  charts['cumul']=new Chart(document.getElementById('chart-cumul'),{
+    type:'line',
+    data:{labels:cKeys,datasets:[{data:cKeys.map(k=>cyrMap[k]),borderColor:'#8b4513',backgroundColor:'rgba(139,69,19,.10)',fill:true,tension:0.2,pointBackgroundColor:'#8b4513',pointRadius:4}]},
+    options:{...COPTS,plugins:{...COPTS.plugins,tooltip:{callbacks:{label:c=>`${c.raw} species total`}}}}
+  });
+
+  // 4. SPECIES × PUBLICATIONS FREQUENCY (BOLD-style)
+  // x = number of publications a species appears in, y = number of species with that count
+  dc('accum');
+  const spPubCount = {};
+  rec.forEach(r => {
+    if (r.name_accepted && r.publication_id) {
+      if (!spPubCount[r.name_accepted]) spPubCount[r.name_accepted] = new Set();
+      spPubCount[r.name_accepted].add(r.publication_id);
+    }
+  });
+  // build frequency distribution
+  const freqDist = {};
+  Object.values(spPubCount).forEach(s => {
+    const n = s.size;
+    freqDist[n] = (freqDist[n] || 0) + 1;
+  });
+  const fKeys = Object.keys(freqDist).map(Number).sort((a,b)=>a-b);
+  const fVals = fKeys.map(k => freqDist[k]);
+  const singleton = freqDist[1] || 0;
+  const total = Object.keys(spPubCount).length;
+
+  charts['accum'] = new Chart(document.getElementById('chart-accum'), {
+    type: 'bar',
+    data: {
+      labels: fKeys.map(k => k === 1 ? '1 pub' : k + ' pubs'),
+      datasets: [{
+        data: fVals,
+        backgroundColor: fKeys.map(k => k === 1 ? '#b5703a' : '#2d5a3d'),
+        borderRadius: 3, barPercentage: 0.75
+      }]
+    },
+    options: {
+      ...COPTS,
+      plugins: {
+        ...COPTS.plugins,
+        tooltip: { callbacks: {
+          title: items => `Reported in ${fKeys[items[0].dataIndex]} publication(s)`,
+          label: c => `${c.raw} species`
+        }}
+      },
+      scales: {
+        x: { ...COPTS.scales.x, title: { display: true, text: 'number of publications', font: { family: 'DM Mono', size: 8 }, color: '#6b6558' }},
+        y: { ...COPTS.scales.y, title: { display: true, text: 'number of species',      font: { family: 'DM Mono', size: 8 }, color: '#6b6558' }}
+      }
+    }
+  });
+  document.getElementById('accum-hint').textContent = total
+    ? `${singleton} of ${total} species (${(singleton/total*100).toFixed(0)}%) reported in only 1 publication`
+    : '';
+
+  // 5. MONTHLY DISTRIBUTION
+  dc('month');
+  const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const mCounts=Array(12).fill(0);
+  rec.forEach(r=>{ if(r.month>=1&&r.month<=12) mCounts[r.month-1]++; });
+  charts['month']=new Chart(document.getElementById('chart-month'),{
+    type:'bar',
+    data:{labels:MONTHS,datasets:[{data:mCounts,backgroundColor:'#1a3a5c',borderRadius:3,barPercentage:0.75}]},
+    options:{...COPTS}
+  });
+
+  // 6. PUBLICATIONS PER YEAR
+  dc('pubyear');
+  const pyMap={};
+  rec.forEach(r=>{ if(r.year&&r.publication_id){ if(!pyMap[r.year]) pyMap[r.year]=new Set(); pyMap[r.year].add(r.publication_id); }});
+  const pyKeys=Object.keys(pyMap).sort();
+  charts['pubyear']=new Chart(document.getElementById('chart-pubyear'),{
+    type:'bar',
+    data:{labels:pyKeys,datasets:[{data:pyKeys.map(k=>pyMap[k].size),backgroundColor:'#3a6b5a',borderRadius:3,barPercentage:0.7}]},
+    options:{...COPTS}
+  });
+
+  // 7. SPECIES / PUBLICATION COVERAGE (right panel — dynamic height)
+  dc('pub-coverage');
+  const pubSp={};
+  rec.forEach(r=>{ if(r.source_label){ if(!pubSp[r.source_label]) pubSp[r.source_label]=new Set(); pubSp[r.source_label].add(r.name_accepted); }});
+  const pcKeys=Object.keys(pubSp).sort((a,b)=>pubSp[b].size-pubSp[a].size);
+
+  // set canvas height: 28px per bar, min 120px
+  const BAR_H = 28;
+  const canvasH = Math.max(120, pcKeys.length * BAR_H);
+  const cvWrap = document.getElementById('coverage-canvas-wrap');
+  cvWrap.style.height = canvasH + 'px';
+  const cv = document.getElementById('chart-pub-coverage');
+  cv.style.height = canvasH + 'px';
+  cv.style.width = '100%';
+
+  charts['pub-coverage']=new Chart(cv,{
+    type:'bar',
+    data:{
+      labels:pcKeys.map(s=>s.length>18?s.slice(0,17)+'…':s),
+      datasets:[{data:pcKeys.map(k=>pubSp[k].size),backgroundColor:pcKeys.map((_,i)=>PALETTE[i%PALETTE.length]),borderRadius:3,barPercentage:0.65}]
+    },
+    options:{
+      ...COPTS,
+      indexAxis:'y',
+      maintainAspectRatio:false,
+      plugins:{...COPTS.plugins,tooltip:{callbacks:{
+        title: items => pcKeys[items[0].dataIndex],
+        label: c=>`${c.raw} species`
+      }}}
+    }
+  });
+}
+
+// ── OVERLAY ───────────────────────────────────────────────────────────────────
+function showOverlay(msg) {
+  document.getElementById('overlay-msg').textContent = msg;
+  document.getElementById('map-overlay').style.display = 'flex';
+}
+function hideOverlay() { document.getElementById('map-overlay').style.display = 'none'; }
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+let activeTab = 'url';
+function switchTab(t) {
+  activeTab = t;
+  ['url','paste'].forEach(id => {
+    document.getElementById('tab-'+id).classList.toggle('active', id===t);
+    document.getElementById('tab-'+id+'-btn').classList.toggle('active', id===t);
+  });
+}
+function openModal() {
+  document.getElementById('cfg-url').value    = config.url    || '';
+  document.getElementById('cfg-title').value  = config.title  || '';
+  document.getElementById('cfg-target').value = config.target || '3';
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+function loadDemo() { closeModal(); loadData(DEMO, true); }
+function saveConfig() {
+  document.getElementById('url-error').classList.remove('show');
+  document.getElementById('paste-error').classList.remove('show');
+  config.title  = document.getElementById('cfg-title').value.trim();
+  config.target = document.getElementById('cfg-target').value.trim() || '3';
+  if (activeTab === 'paste') {
+    showOverlay('Parsing CSV…');
+    loadFromPaste(document.getElementById('cfg-csv').value);
+  } else {
+    const url = document.getElementById('cfg-url').value.trim();
+    if (!url) { const b=document.getElementById('url-error'); b.textContent='⚠ Please enter a URL.'; b.classList.add('show'); return; }
+    config.url = url;
+    localStorage.setItem('bio_cfg4', JSON.stringify(config));
+    loadFromURL(url);
+  }
+}
+</script>
+</body>
+</html>
