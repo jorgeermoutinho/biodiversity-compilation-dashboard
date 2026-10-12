@@ -370,8 +370,9 @@ textarea.csv-paste:focus { border-color: var(--accent); }
       <p style="color:var(--muted);font-size:0.75rem;line-height:1.6;margin-bottom:6px">
         In Sheets: <b>File → Share → Publish to web → select tab → CSV → Publish</b>
       </p>
-      <label>Published CSV URL</label>
+      <label>Google Sheets link</label>
       <input type="text" id="cfg-url" placeholder="https://docs.google.com/spreadsheets/d/…/pub?output=csv">
+      <div class="hint">Any link works: published (pub / pubhtml / CSV) or a normal sheet link shared as “Anyone with the link”.</div>
       <div class="hint">⚠ If opened from a local file, use the Paste CSV tab or run: <b>python -m http.server 8080</b></div>
       <div class="err-banner" id="url-error"></div>
     </div>
@@ -459,39 +460,90 @@ function colorFor(val, arr) {
 // ── INIT ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   leafMap = L.map('map', {zoomControl:true});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution:'© OpenStreetMap © CartoDB', maxZoom:18
-  }).addTo(leafMap);
+  // Keyless basemaps (CARTO's free tiles now return "API KEY REQUIRED" watermarks)
+  const esri = 'https://server.arcgisonline.com/ArcGIS/rest/services/';
+  const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', maxZoom:19
+  });
+  const ocean = L.layerGroup([
+    L.tileLayer(esri + 'Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
+      attribution:'Tiles © Esri — GEBCO, NOAA, National Geographic, DeLorme, HERE, Geonames.org', maxZoom:13
+    }),
+    L.tileLayer(esri + 'Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}', {maxZoom:13})
+  ]);
+  const satellite = L.tileLayer(esri + 'World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution:'Tiles © Esri — Maxar, Earthstar Geographics, and the GIS User Community', maxZoom:18
+  });
+  osm.addTo(leafMap);
+  L.control.layers({'OpenStreetMap':osm, 'Ocean':ocean, 'Satellite':satellite}, null, {position:'topright'}).addTo(leafMap);
   markerLayer = L.layerGroup().addTo(leafMap);
+
+  // A ?sheet=<link> in the address wins over the saved setting, so a bookmarked
+  // address opens the same data on any device. Optional: &title=…  &target=…
+  const params = new URLSearchParams(location.search);
+  if (params.get('sheet'))  config.url    = params.get('sheet').trim();
+  if (params.get('title'))  config.title  = params.get('title').trim();
+  if (params.get('target')) config.target = params.get('target').trim();
 
   if (config.url) loadFromURL(config.url);
   else loadData(DEMO, true);
 });
 
 // ── LOAD ──────────────────────────────────────────────────────────────────────
-async function fetchCSV(url) {
-  // 1. Try direct fetch first
-  try {
-    const res = await fetch(url);
-    if (res.ok) return await res.text();
-  } catch(e) { /* fall through to proxy */ }
+// Accepts any link to a Google Sheet (published, pubhtml, edit/share) or a plain
+// CSV link, and returns the address that actually serves CSV.
+function toCsvUrl(input) {
+  let u;
+  try { u = new URL(input.trim()); } catch(e) { throw new Error('That does not look like a web address.'); }
+  if (u.hostname !== 'docs.google.com') return u.href;
 
-  // 2. Retry via CORS proxy (handles Google Sheets CORS restriction)
-  const proxy = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-  const res2 = await fetch(proxy);
-  if (!res2.ok) throw new Error('Could not fetch data (HTTP ' + res2.status + ')');
-  return await res2.text();
+  // Published-to-web link: /spreadsheets/d/e/<key>/pub, pubhtml, pubchart…
+  let m = u.pathname.match(/^\/spreadsheets\/d\/e\/([\w-]+)/);
+  if (m) {
+    const out = new URL('https://docs.google.com/spreadsheets/d/e/' + m[1] + '/pub');
+    out.searchParams.set('output', 'csv');
+    ['gid','single'].forEach(k => { if (u.searchParams.has(k)) out.searchParams.set(k, u.searchParams.get(k)); });
+    return out.href;
+  }
+  // Normal sheet link (…/edit#gid=0): works only if shared as "Anyone with the link"
+  m = u.pathname.match(/^\/spreadsheets\/d\/([\w-]+)/);
+  if (m) {
+    const gid = u.searchParams.get('gid') || (u.hash.match(/gid=(\d+)/) || [])[1] || '0';
+    return 'https://docs.google.com/spreadsheets/d/' + m[1] + '/export?format=csv&gid=' + gid;
+  }
+  return u.href;
 }
 
-async function loadFromURL(url) {
+async function fetchCSV(input) {
+  const url = toCsvUrl(input);
+  let res;
+  try { res = await fetch(url); }
+  catch(e) { throw new Error('Could not reach the sheet. Check your connection and that the link is shared or published.'); }
+  if (!res.ok) throw new Error('The sheet could not be read (HTTP ' + res.status + ').');
+  const text = await res.text();
+  if (/^\s*<(!doctype|html)/i.test(text)) {
+    throw new Error('That link returned a web page, not data. In Sheets use File → Share → Publish to web → CSV, or share the sheet as "Anyone with the link".');
+  }
+  return { text, url };
+}
+
+async function loadFromURL(input) {
   showOverlay('Fetching sheet…');
   try {
-    const text = await fetchCSV(url);
+    const { text, url } = await fetchCSV(input);
+    config.url = url;
+    try { localStorage.setItem('bio_cfg4', JSON.stringify(config)); } catch(e) {}
     parseAndLoad(text, false);
+    // Put the link in the address bar so this page can be bookmarked/shared
+    try {
+      const p = new URLSearchParams(location.search);
+      p.set('sheet', url);
+      history.replaceState(null, '', location.pathname + '?' + p.toString());
+    } catch(e) { /* e.g. opened from a local file — fine */ }
   } catch(e) {
     hideOverlay();
     const b = document.getElementById('url-error');
-    b.textContent = '⚠ ' + e.message + '\n\nCheck that your sheet is published (File → Share → Publish to web → CSV) and the URL is correct. You can also use the Paste CSV tab as a fallback.';
+    b.textContent = '⚠ ' + e.message + '\n\nYou can also use the Paste CSV tab as a fallback.';
     b.classList.add('show');
     openModal();
   }
