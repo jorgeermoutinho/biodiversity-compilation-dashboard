@@ -10,224 +10,270 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
 
 <style>
+/* Natural-history plate: cream paper, ink rules, numbered figures */
 :root {
-  --bg: #f5f2eb; --surface: #faf8f4; --surface2: #efeae0;
-  --text: #1c1a16; --muted: #6b6558; --accent: #2d5a3d;
-  --accent2: #8b4513; --accent3: #1a3a5c; --border: #d4cec2;
+  --bg: #e6dcc3; --surface: #f4eedf; --surface2: #ebe3cf;
+  --text: #221c12; --muted: #54493a; --accent: #3a3226;
+  --accent2: #8c2f1b; --accent3: #1f4e5f; --border: #bfb292;
+  --ink: #3a3226;
+  --display: 'IM Fell English', Georgia, serif;
+  --label: 'EB Garamond', Georgia, serif;
+  --body: 'EB Garamond', Georgia, serif;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); }
+body { font-family: var(--body); font-size: 17px; font-weight: 500; line-height: 1.5; background: var(--bg); color: var(--text); padding: 18px 14px; font-feature-settings: 'lnum' 1; }
+
+/* ── PLATE FRAME ── */
+.plate { max-width: 1280px; margin: 0 auto; background: var(--surface); border: 1px solid var(--ink); padding: 7px; }
+.plate-inner { border: 0.5px solid var(--ink); }
 
 /* ── HEADER ── */
-header {
-  background: var(--accent); padding: 1rem 1.6rem;
-  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
-}
-header h1 { font-family: 'DM Serif Display', serif; font-size: 1.4rem; color: #d9ead3; font-style: italic; }
-header .subtitle { font-size: 0.72rem; color: #8fba9a; font-family: 'DM Mono', monospace; }
+header { position: relative; text-align: center; padding: 22px 24px 0; }
+.plate-no { font-family: var(--label); font-size: 0.95rem; letter-spacing: 0.32em; font-weight: 600; color: var(--ink); }
+header h1 { font-family: var(--display); font-style: italic; font-weight: 400; font-size: 2.1rem; line-height: 1.15; margin: 4px 0; color: var(--text); }
+header .subtitle { font-style: italic; font-size: 0.9rem; color: var(--muted); }
+.dbl-rule { border-top: 0.5px solid var(--ink); border-bottom: 0.5px solid var(--ink); height: 4px; margin: 16px -24px 0; }
 .hbtn {
-  font-family: 'DM Mono', monospace; font-size: 0.7rem; color: #8fba9a;
-  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 4px; padding: 4px 10px; cursor: pointer; transition: background 0.15s;
+  position: absolute; top: 14px; right: 16px;
+  font-family: var(--label); font-size: 0.9rem; letter-spacing: 0.1em; color: var(--ink);
+  background: none; border: 0.5px solid var(--ink); padding: 3px 11px; cursor: pointer;
 }
-.hbtn:hover { background: rgba(255,255,255,0.2); }
-.header-btns { margin-left: auto; display: flex; gap: 8px; }
+.hbtn:hover { background: var(--surface2); }
 
-/* ── STATS STRIP ── */
-.stats-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); border-bottom: 1px solid var(--border); }
-.stat-box { padding: 0.8rem 1.1rem; border-right: 1px solid var(--border); background: var(--surface); }
+/* ── STATS ── */
+.stats-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); border-bottom: 0.5px solid var(--ink); }
+.stat-box { padding: 12px 14px 10px; text-align: center; border-right: 0.5px solid var(--border); }
 .stat-box:last-child { border-right: none; }
-.stat-label { font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
-.stat-value { font-family: 'DM Serif Display', serif; font-size: 1.5rem; color: var(--accent); line-height: 1; }
-.stat-sub { font-size: 0.65rem; color: var(--muted); margin-top: 2px; }
+.stat-label { font-family: var(--label); font-size: 0.88rem; letter-spacing: 0.12em; color: var(--muted); }
+.stat-value { font-family: var(--body); font-weight: 500; font-size: 2.1rem; line-height: 1.1; color: var(--text); }
+.stat-value.small { font-size: 1.3rem; padding-top: 9px; white-space: nowrap; }
+.stat-sub { font-size: 0.9rem; color: var(--muted); }
 
 /* ── FILTERS ── */
 .filters-bar {
-  display: flex; flex-wrap: wrap; gap: 8px; padding: 7px 14px;
-  background: var(--surface2); border-bottom: 1px solid var(--border); align-items: center;
+  display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px 20px;
+  background: var(--surface2); border-bottom: 0.5px solid var(--ink); align-items: center;
 }
-.filters-bar label { font-size: 0.67rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+.fg { display: inline-flex; align-items: center; gap: 6px; }
+.filters-bar label { font-family: var(--label); font-size: 0.9rem; letter-spacing: 0.1em; color: var(--muted); }
 select, input[type=text] {
-  font-family: 'DM Sans', sans-serif; font-size: 0.75rem;
-  border: 1px solid var(--border); background: var(--surface);
-  color: var(--text); border-radius: 4px; padding: 3px 7px; outline: none; height: 26px;
+  font-family: var(--body); font-size: 0.95rem; border: 0.5px solid var(--ink); background: var(--surface);
+  color: var(--text); padding: 2px 6px; outline: none; height: 28px; border-radius: 0; max-width: 170px;
 }
-select:focus, input:focus { border-color: var(--accent); }
-.filter-count { margin-left: auto; font-family: 'DM Mono', monospace; font-size: 0.67rem; color: var(--muted); }
+select:focus, input:focus { border-color: var(--accent2); box-shadow: 0 0 0 1px var(--accent2); }
+.filter-count { margin-left: auto; font-style: italic; font-size: 0.95rem; color: var(--muted); }
 
-/* ── CHARTS GRID (top section) ── */
-.charts-section {
-  display: grid;
-  grid-template-columns: 1fr 320px;
-  border-bottom: 1px solid var(--border);
+/* ── MULTI-SELECT FILTERS ── */
+.ms { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+.ms-btn {
+  font-family: var(--body); font-size: 0.95rem; border: 0.5px solid var(--ink); background: var(--surface);
+  color: var(--text); padding: 2px 22px 2px 8px; height: 28px; min-width: 96px; max-width: 220px; text-align: left;
+  cursor: pointer; position: relative; border-radius: 0; overflow: hidden;
 }
+.ms-btn .ms-text { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ms-btn::after { content: '\25BE'; position: absolute; right: 7px; top: 3px; color: var(--muted); }
+.ms-btn.active { background: var(--surface2); border-color: var(--accent2); box-shadow: 0 0 0 1px var(--accent2); }
+.ms-btn:focus-visible { outline: 2px solid var(--accent2); outline-offset: 1px; }
+.ms-panel {
+  position: absolute; top: calc(100% + 3px); left: 0; z-index: 3000; background: var(--surface);
+  border: 0.5px solid var(--ink); padding: 8px 10px 8px; width: 270px; max-width: 92vw;
+}
+.ms-panel[hidden] { display: none; }
+.filters-bar .ms-panel .ms-search { width: 100%; max-width: none; margin-bottom: 6px; }
+.ms-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.ms-hint { font-style: italic; font-size: 0.82rem; color: var(--muted); }
+.ms-clear, .ms-clearall {
+  font-family: var(--label); font-size: 0.85rem; letter-spacing: 0.1em; color: var(--ink);
+  background: none; border: 0.5px solid var(--ink); padding: 1px 9px; cursor: pointer;
+}
+.ms-clear:hover, .ms-clearall:hover { background: var(--surface2); }
+.ms-list { max-height: 260px; overflow-y: auto; }
+.filters-bar .ms-opt {
+  display: flex; align-items: baseline; gap: 8px; padding: 2px 3px; cursor: pointer;
+  font-family: var(--body); font-size: 1rem; letter-spacing: 0; color: var(--text); font-variant-caps: normal;
+}
+.filters-bar .ms-opt:hover { background: var(--surface2); }
+.ms-opt input { accent-color: var(--ink); margin: 0; align-self: center; flex-shrink: 0; }
+.ms-lbl { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ms-n { font-style: italic; font-size: 0.85rem; color: var(--muted); }
+.ms-empty { font-style: italic; color: var(--muted); font-size: 0.9rem; padding: 4px 3px; }
 
-/* left column: all charts + pub-year + map stacked */
-.charts-left { border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+/* ── FIGURES ── */
+.fig { padding: 16px 20px 14px; position: relative; min-width: 0; }
+.fig-h { font-family: var(--body); font-weight: 500; font-size: 1.25rem; line-height: 1.3; margin-bottom: 8px; color: var(--text); }
+.fig-no { font-family: var(--label); font-style: normal; font-weight: 500; letter-spacing: 0.1em; margin-right: 8px; color: var(--accent2); }
+.fig-cap { font-size: 0.95rem; color: var(--muted); margin-top: 8px; line-height: 1.45; }
+.fig-row { display: grid; border-top: 0.5px solid var(--ink); }
+.fig-row.two { grid-template-columns: 1fr 1fr; }
+.fig-row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fig-row > .fig + .fig { border-left: 0.5px solid var(--border); }
+.freq-hint { font-size: 0.95rem; color: var(--muted); margin-top: 6px; line-height: 1.45; }
 
-/* bottom row of small charts */
-.bottom-charts {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-}
-
-/* map inside left column */
-.map-section {
-  border-top: 1px solid var(--border);
-  position: relative;
-  background: var(--surface);
-  flex-shrink: 0;
-}
-.map-toolbar {
-  display: flex; gap: 6px; padding: 6px 10px; background: var(--surface);
-  border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap;
-}
+/* ── MAP ── */
+.map-section { position: relative; }
+.map-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
 .toggle-btn {
-  font-family: 'DM Mono', monospace; font-size: 0.67rem; color: var(--muted);
-  background: none; border: 1px solid var(--border); border-radius: 4px;
-  padding: 3px 9px; cursor: pointer; transition: all 0.15s;
+  font-family: var(--label); font-size: 0.9rem; letter-spacing: 0.1em; color: var(--ink);
+  background: none; border: 0.5px solid var(--ink); padding: 2px 12px; cursor: pointer;
 }
 .toggle-btn:hover { background: var(--surface2); }
-.toggle-btn.active { background: var(--accent); color: #d9ead3; border-color: var(--accent); }
-#map { width: 100%; height: 480px; }
-
-/* right: species/pub coverage — fixed height, scrolls internally */
-.charts-right {
-  display: flex; flex-direction: column;
-  border-left: 1px solid var(--border);
-}
-.coverage-header {
-  padding: 1rem 1.1rem 0.6rem;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.coverage-header h2 {
-  font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.07em;
-  text-transform: uppercase; color: var(--muted); margin-bottom: 2px;
-}
-.coverage-header p {
-  font-size: 0.65rem; color: var(--muted); font-family: 'DM Mono', monospace;
-}
-/* scrollable wrapper — fills the full right column, scrolls when bars overflow */
-.coverage-scroll-wrap {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 200px;
-}
-.coverage-scroll-wrap::-webkit-scrollbar { width: 4px; }
-.coverage-scroll-wrap::-webkit-scrollbar-track { background: transparent; }
-.coverage-scroll-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-/* the canvas wrapper grows to fit all bars */
-#coverage-canvas-wrap {
-  padding: 8px 1.1rem 1rem;
-  background: var(--surface);
-}
-
-/* generic chart panel */
-.chart-panel {
-  background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 1.1rem 0.9rem;
-}
-.chart-panel:last-child { border-bottom: none; }
-.chart-panel h2 {
-  font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.07em;
-  text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
-}
-.bottom-chart-box { padding: 1rem 1.1rem; border-right: 1px solid var(--border); background: var(--surface); }
-.bottom-chart-box:last-child { border-right: none; }
-.bottom-chart-box h2 { font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
-
-/* ── TAXONOMIC DRILLDOWN ── */
-.taxa-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-.taxa-title { font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
-.taxa-breadcrumb { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-.taxa-crumb {
-  font-family: 'DM Mono', monospace; font-size: 0.62rem; color: var(--accent);
-  cursor: pointer; text-decoration: underline; text-decoration-style: dotted;
-}
-.taxa-crumb:hover { color: var(--accent2); }
-.taxa-sep { font-size: 0.6rem; color: var(--muted); }
-.taxa-back {
-  margin-left: auto; font-family: 'DM Mono', monospace; font-size: 0.62rem;
-  color: var(--muted); background: none; border: 1px solid var(--border);
-  border-radius: 3px; padding: 2px 7px; cursor: pointer;
-}
-.taxa-back:hover { background: var(--surface2); }
-
-/* ── MAP LEGEND ── */
+.toggle-btn.active { background: var(--ink); color: var(--surface); }
+.cb-label { font-family: var(--label); font-size: 0.9rem; letter-spacing: 0.1em; color: var(--muted); margin-left: 8px; }
+.map-note { margin-left: auto; font-style: italic; font-size: 0.92rem; color: var(--muted); }
+#map { width: 100%; height: 540px; border: 0.5px solid var(--ink); }
+.leaflet-container { font-family: var(--body); background: #d9d0b6; }
+.leaflet-tile-pane { filter: sepia(0.4) saturate(0.8) contrast(0.95); }
+.leaflet-popup-content-wrapper { border-radius: 0; background: var(--surface); border: 0.5px solid var(--ink); box-shadow: none; color: var(--text); }
+.leaflet-popup-tip { background: var(--surface); box-shadow: none; }
+.leaflet-popup-content { font-size: 0.95rem; line-height: 1.35; }
+.leaflet-control-layers { border-radius: 0; font-size: 0.95rem; }
+.map-wrap { position: relative; }
 #map-legend {
-  position: absolute; bottom: 28px; right: 8px;
-  background: rgba(250,248,244,0.93); border: 1px solid var(--border);
-  border-radius: 5px; padding: 6px 9px; font-family: 'DM Mono', monospace;
-  font-size: 0.62rem; color: var(--text); z-index: 500;
-  max-width: 170px; max-height: 220px; overflow-y: auto; display: none;
+  position: absolute; bottom: 26px; right: 8px;
+  background: rgba(244,238,223,0.95); border: 0.5px solid var(--ink); padding: 5px 9px;
+  font-size: 0.85rem; color: var(--text); z-index: 500;
+  max-width: 180px; max-height: calc(100% - 110px); overflow-y: auto; display: none;
 }
-#map-legend .leg-item { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
+#map-legend .leg-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; font-family: var(--label); letter-spacing: 0.1em; font-size: 0.9rem; color: var(--muted); }
+#map-legend .leg-head::after { content: '\25BE'; }
+#map-legend.collapsed .leg-head::after { content: '\25B4'; }
+#map-legend .leg-body { margin-top: 4px; }
+#map-legend.collapsed .leg-body { display: none; }
+#map-legend.collapsed { overflow: hidden; }
+#map-legend .leg-item { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
 #map-legend .leg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-
-/* ── MAP OVERLAY ── */
 .status-overlay {
-  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(245,242,235,0.93); display: flex; align-items: center;
-  justify-content: center; font-family: 'DM Mono', monospace; font-size: 0.78rem;
-  color: var(--muted); z-index: 999; text-align: center; padding: 2rem;
-  flex-direction: column; gap: 8px;
+  position: absolute; inset: 0; background: rgba(244,238,223,0.94); display: flex; align-items: center;
+  justify-content: center; font-style: italic; font-size: 1rem; color: var(--muted);
+  z-index: 999; text-align: center; padding: 2rem; flex-direction: column; gap: 8px;
 }
-.dot-loader span {
-  display: inline-block; width: 6px; height: 6px; background: var(--accent);
-  border-radius: 50%; margin: 0 3px; animation: bounce 1.2s infinite;
-}
+.dot-loader span { display: inline-block; width: 6px; height: 6px; background: var(--ink); border-radius: 50%; margin: 0 3px; animation: bounce 1.2s infinite; }
 .dot-loader span:nth-child(2) { animation-delay: 0.2s; }
 .dot-loader span:nth-child(3) { animation-delay: 0.4s; }
 @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-8px)} }
 
-/* ── FREQ HINT ── */
-.freq-hint { font-size: 0.65rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 5px; }
+/* ── TAXONOMIC DRILLDOWN ── */
+.taxa-header { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.taxa-breadcrumb { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 0.92rem; margin-bottom: 6px; }
+.taxa-crumb { color: var(--accent2); cursor: pointer; text-decoration: underline; text-decoration-style: dotted; }
+.taxa-crumb:hover { color: var(--text); }
+.taxa-sep { color: var(--muted); }
+.taxa-back {
+  margin-left: auto; font-family: var(--label); font-size: 0.85rem; letter-spacing: 0.1em; color: var(--ink);
+  background: none; border: 0.5px solid var(--ink); padding: 1px 9px; cursor: pointer;
+}
+.taxa-back:hover { background: var(--surface2); }
+
+/* ── COVERAGE ── */
+.coverage-scroll-wrap { height: 400px; overflow-y: auto; }
+.coverage-scroll-wrap::-webkit-scrollbar { width: 5px; }
+.coverage-scroll-wrap::-webkit-scrollbar-thumb { background: var(--border); }
+#coverage-canvas-wrap { padding: 2px 4px 8px 0; }
+
+/* ── CLUSTERS ── */
+.plate-cluster {
+  width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--ink); color: var(--surface); border: 2px solid var(--surface); outline: 0.5px solid var(--ink);
+  font-family: var(--body); font-weight: 500; font-size: 0.9rem;
+}
+
+/* ── DATA NOTES ── */
+.dq { border-top: 0.5px solid var(--ink); padding-top: 10px; padding-bottom: 10px; }
+.dq summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.dq summary::-webkit-details-marker { display: none; }
+.dq summary::before { content: '\25B8'; color: var(--muted); }
+.dq details[open] > summary::before { content: '\25BE'; }
+.dq-summary { font-style: italic; font-size: 0.95rem; color: var(--muted); }
+.dq-summary b { font-weight: 500; color: var(--accent2); }
+#dq-body { margin-top: 10px; }
+.dq-item { border-top: 0.5px solid var(--border); padding: 6px 0; }
+.dq-item > summary { gap: 10px; }
+.dq-n { font-family: var(--body); font-size: 1.2rem; min-width: 2.2rem; text-align: right; color: var(--accent2); }
+.dq-n.info { color: var(--muted); }
+.dq-title { font-size: 1rem; }
+.dq-hint { font-style: italic; font-size: 0.85rem; color: var(--muted); margin: 4px 0 4px 3.2rem; }
+.dq-list { margin: 4px 0 6px 3.2rem; font-size: 0.9rem; line-height: 1.5; max-height: 240px; overflow-y: auto; }
+.dq-list div { border-bottom: 0.5px dotted var(--border); padding: 1px 0; }
+.dq-row { font-family: var(--label); letter-spacing: 0.08em; color: var(--muted); margin-right: 6px; }
+.dq-ok { font-style: italic; color: var(--muted); }
+
+/* ── COLOPHON ── */
+.colophon { border-top: 0.5px solid var(--ink); padding: 10px 20px; text-align: center; font-style: italic; font-size: 0.85rem; color: var(--muted); }
 
 /* ── MODAL ── */
-.modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 2000; align-items: center; justify-content: center; }
+.modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(42,36,24,0.55); z-index: 2000; align-items: center; justify-content: center; }
 .modal-backdrop.open { display: flex; }
-.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.8rem; max-width: 520px; width: 92%; }
-.modal h3 { font-family: 'DM Serif Display', serif; font-size: 1.15rem; margin-bottom: 0.9rem; color: var(--accent); }
-.modal label { display: block; margin: 10px 0 3px; color: var(--muted); font-size: 0.72rem; font-family: 'DM Mono', monospace; }
-.modal input[type=text] { width: 100%; padding: 6px 9px; font-size: 0.8rem; }
-.modal-btns { display: flex; gap: 8px; margin-top: 1.2rem; justify-content: flex-end; }
-.btn-primary { background: var(--accent); color: #d9ead3; border: none; border-radius: 5px; padding: 7px 16px; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; cursor: pointer; }
-.btn-secondary { background: none; color: var(--muted); border: 1px solid var(--border); border-radius: 5px; padding: 7px 14px; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; cursor: pointer; }
-.hint { font-size: 0.68rem; color: var(--muted); margin-top: 4px; line-height: 1.55; }
+.modal { background: var(--surface); border: 1px solid var(--ink); outline: 0.5px solid var(--ink); outline-offset: -5px; padding: 1.8rem; max-width: 540px; width: 92%; max-height: 92vh; overflow-y: auto; }
+.modal h3 { font-family: var(--body); font-weight: 500; font-size: 1.5rem; margin-bottom: 0.9rem; color: var(--text); }
+.modal label { display: block; margin: 10px 0 3px; color: var(--muted); font-family: var(--label); font-size: 0.95rem; letter-spacing: 0.1em; }
+.modal input[type=text] { width: 100%; max-width: none; padding: 6px 9px; font-size: 0.95rem; height: 32px; }
+.modal-btns { display: flex; gap: 8px; margin-top: 1.2rem; justify-content: flex-end; flex-wrap: wrap; }
+.btn-primary { background: var(--ink); color: var(--surface); border: 0.5px solid var(--ink); padding: 6px 16px; font-family: var(--label); font-size: 1rem; letter-spacing: 0.1em; cursor: pointer; }
+.btn-primary:hover { background: var(--accent2); border-color: var(--accent2); }
+.btn-secondary { background: none; color: var(--ink); border: 0.5px solid var(--ink); padding: 6px 14px; font-family: var(--label); font-size: 1rem; letter-spacing: 0.1em; cursor: pointer; }
+.btn-secondary:hover { background: var(--surface2); }
+.hint { font-size: 0.85rem; color: var(--muted); margin-top: 4px; line-height: 1.5; font-style: italic; }
 .col2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
-.mtabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
-.mtab { font-family: 'DM Mono', monospace; font-size: 0.72rem; padding: 6px 14px; cursor: pointer; border: none; background: none; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
-.mtab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.mtabs { display: flex; border-bottom: 0.5px solid var(--ink); margin-bottom: 1rem; }
+.mtab { font-family: var(--label); font-size: 1rem; letter-spacing: 0.08em; padding: 6px 14px; cursor: pointer; border: none; background: none; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.mtab.active { color: var(--text); border-bottom-color: var(--accent2); }
 .mtab-panel { display: none; }
 .mtab-panel.active { display: block; }
-textarea.csv-paste { width: 100%; height: 150px; resize: vertical; font-family: 'DM Mono', monospace; font-size: 0.7rem; border: 1px solid var(--border); background: var(--surface2); color: var(--text); border-radius: 4px; padding: 8px; outline: none; line-height: 1.5; }
-textarea.csv-paste:focus { border-color: var(--accent); }
-.err-banner { display: none; background: #fff3cd; border: 1px solid #f0c040; border-radius: 5px; padding: 8px 12px; margin-top: 8px; font-family: 'DM Mono', monospace; font-size: 0.7rem; color: #7a5a00; line-height: 1.5; white-space: pre-wrap; }
+textarea.csv-paste { width: 100%; height: 150px; resize: vertical; font-family: var(--body); font-size: 0.85rem; border: 0.5px solid var(--ink); background: var(--surface2); color: var(--text); padding: 8px; outline: none; line-height: 1.4; }
+textarea.csv-paste:focus { border-color: var(--accent2); }
+.err-banner { display: none; background: #f3e1d8; border: 0.5px solid var(--accent2); padding: 8px 12px; margin-top: 8px; font-size: 0.9rem; color: #6b2412; line-height: 1.45; white-space: pre-wrap; }
 .err-banner.show { display: block; }
 
+/* ── SMALL-CAPS LABELS: one rule so they all stay legible (sturdy face, modest tracking, no tiny sizes) ── */
+.plate-no, .stat-label, .hbtn, .filters-bar label, .toggle-btn, .cb-label, .taxa-back, .ms-clear, .ms-clearall,
+.fig-no, #map-legend .leg-head, .dq-row, .modal label, .mtab, .btn-primary, .btn-secondary {
+  font-family: var(--label); font-variant-caps: all-small-caps; font-weight: 500; letter-spacing: 0.07em; font-size: 1.05rem;
+}
+.plate-no { letter-spacing: 0.3em; font-size: 1.1rem; }
+.stat-label, .filters-bar label, .cb-label { color: var(--muted); }
+
 /* ── RESPONSIVE ── */
-@media (max-width: 700px) {
-  .charts-section { grid-template-columns: 1fr; }
-  .charts-right { border-top: 1px solid var(--border); }
-  #map { height: 320px; }
+@media (max-width: 900px) {
+  .fig-row.two, .fig-row.three { grid-template-columns: 1fr; }
+  .fig-row > .fig + .fig { border-left: none; border-top: 0.5px solid var(--border); }
+  .coverage-scroll-wrap { height: 340px; }
+}
+@media (max-width: 600px) {
+  body { padding: 0; }
+  .plate { border-left: none; border-right: none; padding: 4px; }
+  header { padding: 16px 14px 0; }
+  header h1 { font-size: 1.65rem; }
+  .dbl-rule { margin: 14px -14px 0; }
+  .hbtn { position: static; margin-top: 10px; }
+  .fig { padding: 14px 12px; }
+  .filters-bar { padding: 8px 12px; gap: 8px 12px; }
+  .filter-count { margin-left: 0; width: 100%; }
+  .ms { width: 100%; }
+  .ms-btn { flex: 1; max-width: none; }
+  .ms-panel { left: 0; right: 0; width: auto; }
+  #f-search { width: 100% !important; max-width: none; }
+  #map { height: 340px; }
+  .stat-value { font-size: 1.7rem; }
+  .col2 { grid-template-columns: 1fr; }
 }
 </style>
 </head>
 <body>
 
+<div class="plate"><div class="plate-inner">
+
 <!-- HEADER -->
 <header>
-  <div>
-    <h1>Biodiversity Literature Dashboard</h1>
-    <div class="subtitle" id="last-updated">loading…</div>
-  </div>
-  <div class="header-btns">
-    <button class="hbtn" onclick="openModal()">⚙ configure source</button>
-  </div>
+  <button class="hbtn" onclick="openModal()">&#9881; source</button>
+  <div class="plate-no">Plate I</div>
+  <h1>Biodiversity Literature Dashboard</h1>
+  <div class="subtitle" id="last-updated">loading…</div>
+  <div class="dbl-rule"></div>
 </header>
 
 <!-- STATS -->
@@ -235,128 +281,133 @@ textarea.csv-paste:focus { border-color: var(--accent); }
   <div class="stat-box"><div class="stat-label">Records</div><div class="stat-value" id="s-total">—</div></div>
   <div class="stat-box"><div class="stat-label">Species</div><div class="stat-value" id="s-species">—</div><div class="stat-sub" id="s-genera"></div></div>
   <div class="stat-box"><div class="stat-label">Publications</div><div class="stat-value" id="s-pubs">—</div><div class="stat-sub" id="s-pubs-sub"></div></div>
-  <div class="stat-box"><div class="stat-label">Year range</div><div class="stat-value" id="s-years" style="font-size:1rem;padding-top:5px">—</div></div>
-  <div class="stat-box"><div class="stat-label">With coords</div><div class="stat-value" id="s-coords">—</div><div class="stat-sub" id="s-coords-pct"></div></div>
+  <div class="stat-box"><div class="stat-label">Years</div><div class="stat-value small" id="s-years">—</div></div>
+  <div class="stat-box"><div class="stat-label">Mapped</div><div class="stat-value" id="s-coords">—</div><div class="stat-sub" id="s-coords-pct"></div></div>
   <div class="stat-box"><div class="stat-label">Phyla</div><div class="stat-value" id="s-phyla">—</div></div>
   <div class="stat-box"><div class="stat-label">Families</div><div class="stat-value" id="s-families">—</div></div>
 </div>
 
 <!-- FILTERS -->
 <div class="filters-bar">
-  <label>Phylum</label>
-  <select id="f-phylum" onchange="applyFilters()"><option value="">All</option></select>
-  <label>Class</label>
-  <select id="f-class" onchange="applyFilters()"><option value="">All</option></select>
-  <label>Order</label>
-  <select id="f-order" onchange="applyFilters()"><option value="">All</option></select>
-  <label>Family</label>
-  <select id="f-family" onchange="applyFilters()"><option value="">All</option></select>
-  <label>Publication</label>
-  <select id="f-pub" onchange="applyFilters()"><option value="">All</option></select>
-  <label>Year</label>
-  <select id="f-year" onchange="applyFilters()"><option value="">All</option></select>
-  <label>Type</label>
-  <select id="f-pubtype" onchange="applyFilters()"><option value="">All</option></select>
-  <input type="text" id="f-search" placeholder="species / genus…" oninput="applyFilters()" style="width:120px">
+  <span id="ms-host" style="display:contents"></span>
+  <input type="text" id="f-search" placeholder="species / genus…" oninput="onSearchInput()" style="width:150px" aria-label="Search species or genus">
+  <button type="button" class="ms-clearall" id="clear-filters" onclick="clearAllFilters()" style="display:none">Clear filters</button>
   <span class="filter-count" id="filter-count"></span>
 </div>
 
-<!-- CHARTS SECTION -->
-<div class="charts-section">
-
-  <!-- LEFT: stacked charts -->
-  <div class="charts-left">
-
-    <!-- 3x2 CHART GRID -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--border)">
-
-      <!-- Cell 1: Taxonomic drilldown -->
-      <div class="chart-panel" style="border-right:1px solid var(--border);border-bottom:none">
-        <div class="taxa-header">
-          <span class="taxa-title" id="taxa-title">Records by taxa: phylum</span>
-          <button class="taxa-back" id="taxa-back-btn" onclick="taxaDrillUp()" style="display:none">↑ back</button>
-        </div>
-        <div class="taxa-breadcrumb" id="taxa-breadcrumb"></div>
-        <canvas id="chart-taxa" height="140"></canvas>
-      </div>
-
-      <!-- Cell 2: Publication type -->
-      <div class="chart-panel" style="border-right:1px solid var(--border);border-bottom:none">
-        <h2>Publication type</h2>
-        <canvas id="chart-pubtype" height="140"></canvas>
-      </div>
-
-      <!-- Cell 3: Records per year -->
-      <div class="chart-panel" style="border-bottom:none">
-        <h2>Records per year</h2>
-        <canvas id="chart-time" height="140"></canvas>
-      </div>
-
-      <!-- Cell 4: Cumulative new species -->
-      <div class="chart-panel" style="border-right:1px solid var(--border);border-bottom:none;border-top:1px solid var(--border)">
-        <h2>Cumulative new species</h2>
-        <canvas id="chart-cumul" height="130"></canvas>
-      </div>
-
-      <!-- Cell 5: Species × publications frequency -->
-      <div class="chart-panel" style="border-right:1px solid var(--border);border-bottom:none;border-top:1px solid var(--border)">
-        <h2>Species × publications</h2>
-        <canvas id="chart-accum" height="130"></canvas>
-        <div class="freq-hint" id="accum-hint"></div>
-      </div>
-
-      <!-- Cell 6: Monthly distribution -->
-      <div class="chart-panel" style="border-bottom:none;border-top:1px solid var(--border)">
-        <h2>Monthly distribution</h2>
-        <canvas id="chart-month" height="130"></canvas>
-      </div>
-
+<!-- FIG 1: MAP -->
+<section class="fig">
+  <div class="map-section">
+    <h2 class="fig-h"><span class="fig-no">Fig. 1.</span>Recorded localities</h2>
+    <div class="map-toolbar">
+      <button class="toggle-btn active" id="btn-markers" onclick="setMapMode('markers')">Markers</button>
+      <button class="toggle-btn" id="btn-heat" onclick="setMapMode('heat')">Heatmap</button>
+      <button class="toggle-btn active" id="btn-cluster" onclick="toggleCluster()" title="Group nearby records into counted clusters">Cluster</button>
+      <span class="cb-label">Colour by</span>
+      <select id="color-by" onchange="applyFilters()">
+        <option value="phylum">Phylum</option>
+        <option value="family">Family</option>
+        <option value="pub">Publication</option>
+        <option value="pubtype">Pub type</option>
+        <option value="island">Island</option>
+        <option value="precision">Coordinate precision</option>
+      </select>
+      <span class="map-note" id="map-coord-info"></span>
     </div>
-
-    <!-- Publications per year — full width of left column -->
-    <div class="chart-panel" style="border-bottom:none;border-top:1px solid var(--border)">
-      <h2>Publications per year</h2>
-      <canvas id="chart-pubyear" height="90"></canvas>
-    </div>
-
-    <!-- MAP inside left column -->
-    <div class="map-section">
-      <div class="map-toolbar">
-        <button class="toggle-btn active" id="btn-markers" onclick="setMapMode('markers')">Markers</button>
-        <button class="toggle-btn" id="btn-heat" onclick="setMapMode('heat')">Heatmap</button>
-        <span style="font-family:'DM Mono',monospace;font-size:0.67rem;color:var(--muted);margin-left:8px">Color by:</span>
-        <select id="color-by" onchange="applyFilters()" style="height:22px;font-size:0.66rem;padding:1px 5px">
-          <option value="phylum">Phylum</option>
-          <option value="family">Family</option>
-          <option value="pub">Publication</option>
-          <option value="pubtype">Pub type</option>
-        </select>
-        <span style="font-family:'DM Mono',monospace;font-size:0.67rem;margin-left:auto" id="map-coord-info"></span>
-      </div>
+    <div class="map-wrap">
       <div id="map"></div>
       <div id="map-legend"></div>
-      <div class="status-overlay" id="map-overlay">
-        <div class="dot-loader"><span></span><span></span><span></span></div>
-        <div id="overlay-msg">Loading data…</div>
-      </div>
     </div>
-
-  </div><!-- /charts-left -->
-
-  <!-- RIGHT: species/publication coverage -->
-  <div class="charts-right">
-    <div class="coverage-header">
-      <h2>Species / publication coverage</h2>
-      <p>unique species per publication</p>
+    <div class="status-overlay" id="map-overlay">
+      <div class="dot-loader"><span></span><span></span><span></span></div>
+      <div id="overlay-msg">Loading data…</div>
     </div>
+    <p class="fig-cap">Each mark is one record with coordinates; numbered discs are clusters (click to zoom in). Hollow rings are records with proxy (approximate) coordinates. Use the layer button (top right of the map) to switch between street, ocean and satellite basemaps.</p>
+  </div>
+</section>
+
+<!-- DATA NOTES -->
+<section class="fig dq" id="dq-section">
+  <details id="dq-details">
+    <summary><span class="fig-h" style="display:inline"><span class="fig-no">Notes</span>On the data</span> <span class="dq-summary" id="dq-summary"></span></summary>
+    <div id="dq-body"></div>
+  </details>
+</section>
+
+<!-- FIG 2-3 -->
+<div class="fig-row two">
+  <section class="fig">
+    <div class="taxa-header">
+      <h2 class="fig-h"><span class="fig-no">Fig. 2.</span><span id="taxa-title">Records by taxa: phylum</span></h2>
+      <button class="taxa-back" id="taxa-back-btn" onclick="taxaDrillUp()" style="display:none">&#8593; back</button>
+    </div>
+    <div class="taxa-breadcrumb" id="taxa-breadcrumb"></div>
+    <div style="position:relative;height:270px"><canvas id="chart-taxa"></canvas></div>
+    <p class="fig-cap">Click a slice to descend one taxonomic rank (phylum, class, order, family).</p>
+  </section>
+  <section class="fig">
+    <h2 class="fig-h"><span class="fig-no">Fig. 3.</span>Species per publication</h2>
     <div class="coverage-scroll-wrap">
       <div id="coverage-canvas-wrap">
         <canvas id="chart-pub-coverage"></canvas>
       </div>
     </div>
-  </div>
+    <p class="fig-cap">Unique species contributed by each source.</p>
+  </section>
+</div>
 
-</div><!-- /charts-section -->
+<!-- FIG 4-6 -->
+<div class="fig-row three">
+  <section class="fig">
+    <h2 class="fig-h"><span class="fig-no">Fig. 4.</span>Records per year</h2>
+    <canvas id="chart-time" height="150"></canvas>
+  </section>
+  <section class="fig">
+    <h2 class="fig-h"><span class="fig-no">Fig. 5.</span>Cumulative species</h2>
+    <canvas id="chart-cumul" height="150"></canvas>
+    <p class="fig-cap">New species added over time as publications are compiled.</p>
+  </section>
+  <section class="fig">
+    <h2 class="fig-h"><span class="fig-no">Fig. 6.</span>Publications per year</h2>
+    <canvas id="chart-pubyear" height="150"></canvas>
+  </section>
+</div>
+
+<!-- FIG 7-9 -->
+<div class="fig-row three">
+  <section class="fig">
+    <h2 class="fig-h"><span class="fig-no">Fig. 7.</span>Species by number of publications</h2>
+    <canvas id="chart-accum" height="150"></canvas>
+    <div class="freq-hint" id="accum-hint"></div>
+  </section>
+  <section class="fig">
+    <h2 class="fig-h"><span class="fig-no">Fig. 8.</span>Monthly distribution</h2>
+    <canvas id="chart-month" height="150"></canvas>
+    <p class="fig-cap">Shows seasonal bias in the records.</p>
+  </section>
+  <section class="fig">
+    <h2 class="fig-h"><span class="fig-no">Fig. 9.</span>Publication type</h2>
+    <canvas id="chart-pubtype" height="150"></canvas>
+  </section>
+</div>
+
+<!-- FIG 10-11 -->
+<div class="fig-row two">
+  <section class="fig">
+    <h2 class="fig-h"><span class="fig-no">Fig. 10.</span>Records by depth</h2>
+    <div style="position:relative;height:250px"><canvas id="chart-depth"></canvas></div>
+    <div class="freq-hint" id="depth-hint"></div>
+  </section>
+  <section class="fig">
+    <h2 class="fig-h"><span class="fig-no">Fig. 11.</span>Records by island</h2>
+    <div style="position:relative;height:250px"><canvas id="chart-island"></canvas></div>
+    <div class="freq-hint" id="island-hint"></div>
+  </section>
+</div>
+
+<div class="colophon">Compiled from the published literature. Basemaps &copy; OpenStreetMap contributors and Esri. Your data stays in your browser.</div>
+
+</div></div>
 
 <!-- CONFIG MODAL -->
 <div class="modal-backdrop" id="modal">
@@ -436,7 +487,13 @@ const DEMO = [
 let config = JSON.parse(localStorage.getItem('bio_cfg4') || '{}');
 let allRecords = [];
 let mapMode = 'markers';
-let leafMap, markerLayer, heatLayer;
+let leafMap, markerLayer, heatLayer, clusterLayer, plainLayer;
+let clusterOn = true;
+
+// Escape text from the sheet before it goes into HTML (sheets can be loaded from shared links)
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 let charts = {};
 
 // Taxonomic drilldown state
@@ -445,11 +502,17 @@ let taxaLevel = 0;           // index into TAXA_LEVELS
 let taxaFilters = [];        // [{level:'phylum', value:'Mollusca'}, …]
 let currentFilteredRec = []; // records after global filters, used by taxa drill
 
+// Muted "printer's ink" colours, distinct enough for ~16 categories
 const PALETTE = [
-  '#2d5a3d','#8b4513','#1a3a5c','#6b6558','#b5703a','#3a6b5a',
-  '#5c3a1a','#3a4a6b','#7a5c3a','#4a6b3a','#3a5c6b','#6b3a5c',
-  '#5a3d6b','#3d6b5a','#6b5a3d','#1c4a2a'
+  '#8c2f1b','#1f4e5f','#b0833a','#5b6b2f','#5a3e5e','#c4663a',
+  '#2f6f5e','#7a5230','#3d5a8a','#a3485f','#6e7f86','#9a8a2c',
+  '#4a3a2a','#3f7f8f','#7b3f3f','#5f7a45'
 ];
+const INK = '#3a3226', PAPER = '#f4eedf', INK_MUTED = '#4a4033', RULE = 'rgba(58,50,38,.14)';
+Chart.defaults.font.family = "'EB Garamond', Georgia, serif";
+Chart.defaults.font.size = 13;
+Chart.defaults.font.weight = 500;
+Chart.defaults.color = INK_MUTED;
 
 function colorFor(val, arr) {
   const u = [...new Set(arr)].sort();
@@ -476,10 +539,20 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   osm.addTo(leafMap);
   L.control.layers({'OpenStreetMap':osm, 'Ocean':ocean, 'Satellite':satellite}, null, {position:'topright'}).addTo(leafMap);
-  markerLayer = L.layerGroup().addTo(leafMap);
+  clusterLayer = L.markerClusterGroup({
+    showCoverageOnHover: false, maxClusterRadius: 38, spiderfyOnMaxZoom: true,
+    iconCreateFunction: c => {
+      const n = c.getChildCount(), s = n < 10 ? 30 : n < 50 ? 38 : 46;
+      return L.divIcon({html:`<div class="plate-cluster">${n}</div>`, className:'', iconSize:[s,s]});
+    }
+  });
+  plainLayer = L.layerGroup();
+  markerLayer = clusterLayer;
+  markerLayer.addTo(leafMap);
 
   // A ?sheet=<link> in the address wins over the saved setting, so a bookmarked
   // address opens the same data on any device. Optional: &title=…  &target=…
+  initFilters();
   const params = new URLSearchParams(location.search);
   if (params.get('sheet'))  config.url    = params.get('sheet').trim();
   if (params.get('title'))  config.title  = params.get('title').trim();
@@ -560,7 +633,7 @@ function loadFromPaste(csv) {
 
 function parseAndLoad(csvText, isDemo) {
   const parsed = Papa.parse(csvText, {header:true, skipEmptyLines:true});
-  const rows = parsed.data.map(normalise);
+  const rows = parsed.data.map((r, i) => normalise(r, i));
   const valid = rows.filter(r => r.name_accepted || r.genus || r.phylum);
   if (!valid.length) {
     const b = document.getElementById('paste-error');
@@ -572,7 +645,18 @@ function parseAndLoad(csvText, isDemo) {
   closeModal();
 }
 
-function normalise(r) {
+const isNA = s => /^(|na|n\/a|nan|null|none|undefined|-)$/i.test((s || '').trim());
+
+// Depth text -> metres (ranges use their midpoint); "intertidal" counts as 0
+function parseDepth(s) {
+  if (isNA(s)) return { label: '', metres: null, intertidal: false };
+  if (/intertidal/i.test(s)) return { label: 'intertidal', metres: 0, intertidal: true };
+  const nums = (s.match(/\d+(?:[.,]\d+)?/g) || []).map(x => parseFloat(x.replace(',', '.')));
+  const metres = nums.length === 1 ? nums[0] : nums.length >= 2 ? (nums[0] + nums[1]) / 2 : null;
+  return { label: /^[\d.,\s–-]+$/.test(s) ? s + ' m' : s, metres, intertidal: false };
+}
+
+function normalise(r, idx) {
   const k = {};
   Object.keys(r).forEach(key => {
     const clean = key.toLowerCase().trim().replace(/ /g,'_');
@@ -604,7 +688,16 @@ function normalise(r) {
     if (normalise._count === 3) normalise._logged = true;
   }
 
+  const depth = parseDepth(k.depth || '');
+
   return {
+    _row:                 (idx || 0) + 2,   // row number in the sheet (row 1 = header)
+    _error:               Object.values(k).some(v => /^#(VALUE|N\/A|REF|NAME|DIV\/0|NUM|NULL|ERROR)/i.test(v)),
+    island:               isNA(k.island) ? '' : k.island,
+    coord_precision:      isNA(k.coord_precision) ? '' : k.coord_precision,
+    depth_label:          depth.label,
+    depth_m:              depth.metres,
+    depth_intertidal:     depth.intertidal,
     name_used:            k.name_used || '',
     name_accepted:        k.name_accepted || k.name || '',
     genus:                k.genus || '',
@@ -631,52 +724,198 @@ function loadData(rows, isDemo) {
   taxaLevel = 0; taxaFilters = [];
   if (config.title) document.querySelector('header h1').textContent = config.title;
   document.getElementById('last-updated').textContent =
-    (isDemo ? '⚠ demo data — ' : '✓ loaded — ') + new Date().toLocaleTimeString() +
-    (isDemo ? ' — click "⚙ configure source" to connect your sheet' : '');
+    (isDemo ? 'Demo data shown' : 'Data loaded') + ' at ' + new Date().toLocaleTimeString() +
+    (isDemo ? ' — use “source” (top right) to connect your sheet' : '');
   populateFilters();
   applyFilters();
+  renderDataNotes(allRecords);
   hideOverlay();
 }
 
 // ── FILTERS ───────────────────────────────────────────────────────────────────
+// Publication identity for a record: publication_id when it holds a real value,
+// otherwise the source label (sheets often fill publication_id with "NA")
+function pubKey(r) {
+  const id = (r.publication_id || '').trim();
+  return /^(|na|n\/a|nan|null|none|-)$/i.test(id) ? (r.source_label || '') : id;
+}
 function uniq(arr) { return [...new Set(arr.filter(v => v !== null && v !== undefined && v !== ''))].sort(); }
 
-function populateFilters() {
-  const fill = (id, vals) => {
-    const el = document.getElementById(id), prev = el.value;
-    el.innerHTML = '<option value="">All</option>' + vals.map(v=>`<option>${v}</option>`).join('');
-    if (vals.includes(prev)) el.value = prev;
-  };
-  fill('f-phylum',  uniq(allRecords.map(r=>r.phylum)));
-  fill('f-class',   uniq(allRecords.map(r=>r.class)));
-  fill('f-order',   uniq(allRecords.map(r=>r.order)));
-  fill('f-family',  uniq(allRecords.map(r=>r.family)));
-  fill('f-pub',     uniq(allRecords.map(r=>r.source_label)));
-  fill('f-year',    uniq(allRecords.map(r=>r.year).filter(Boolean).map(String)));
-  fill('f-pubtype', uniq(allRecords.map(r=>r.pub_type)));
+// Each filter is a multi-select. Options are "faceted": a filter only offers values that exist
+// among the records matching all the OTHER filters, so choosing Arthropoda narrows class,
+// order and family to arthropod groups. A selection that stops being available is dropped.
+const BLANK = '__blank__';
+const FILTER_DEFS = [
+  {key:'phylum',  label:'Phylum',      get:r=>r.phylum},
+  {key:'class',   label:'Class',       get:r=>r.class},
+  {key:'order',   label:'Order',       get:r=>r.order},
+  {key:'family',  label:'Family',      get:r=>r.family},
+  {key:'pub',     label:'Publication', get:r=>r.source_label},
+  {key:'year',    label:'Year',        get:r=>r.year ? String(r.year) : '', numeric:true},
+  {key:'island',  label:'Island',      get:r=>r.island},
+  {key:'pubtype', label:'Type',        get:r=>r.pub_type},
+];
+const filterSel = {};    // key -> Set of selected values
+const filterOpts = {};   // key -> [{v, label, n}] currently on offer
+FILTER_DEFS.forEach(d => { filterSel[d.key] = new Set(); filterOpts[d.key] = []; d.present = true; });
+const fval = (d, r) => d.get(r) || BLANK;
+const searchText = () => document.getElementById('f-search').value.toLowerCase();
+
+// Taxonomic ranks only narrow the ranks BELOW them (phylum -> class -> order -> family), so
+// picking another phylum is never blocked by an order chosen earlier; it just resets that order.
+const TAXA = ['phylum', 'class', 'order', 'family'];
+function constrains(forKey, key) {
+  if (forKey === null) return true;                 // the records actually shown: every filter applies
+  if (key === forKey) return false;                 // a filter's own list ignores its own selection
+  const rank = TAXA.indexOf(forKey);
+  return !(rank >= 0 && TAXA.indexOf(key) >= rank); // ranks at or below this one do not constrain it
+}
+
+function passes(r, forKey, search) {
+  for (const d of FILTER_DEFS) {
+    if (!constrains(forKey, d.key)) continue;
+    const s = filterSel[d.key];
+    if (s.size && !s.has(fval(d, r))) return false;
+  }
+  return !search || (r.name_accepted || '').toLowerCase().includes(search) ||
+         (r.genus || '').toLowerCase().includes(search) || (r.source || '').toLowerCase().includes(search);
 }
 
 function getFiltered() {
-  const fP  = document.getElementById('f-phylum').value;
-  const fC  = document.getElementById('f-class').value;
-  const fO  = document.getElementById('f-order').value;
-  const fF  = document.getElementById('f-family').value;
-  const fPb = document.getElementById('f-pub').value;
-  const fY  = document.getElementById('f-year').value;
-  const fT  = document.getElementById('f-pubtype').value;
-  const fS  = document.getElementById('f-search').value.toLowerCase();
-  return allRecords.filter(r =>
-    (!fP  || r.phylum       === fP)  &&
-    (!fC  || r.class        === fC)  &&
-    (!fO  || r.order        === fO)  &&
-    (!fF  || r.family       === fF)  &&
-    (!fPb || r.source_label === fPb) &&
-    (!fY  || String(r.year) === fY)  &&
-    (!fT  || r.pub_type     === fT)  &&
-    (!fS  || r.name_accepted.toLowerCase().includes(fS) ||
-             r.genus.toLowerCase().includes(fS) ||
-             r.source.toLowerCase().includes(fS))
-  );
+  const s = searchText();
+  return allRecords.filter(r => passes(r, null, s));
+}
+
+function anyFilterActive() {
+  return searchText() !== '' || FILTER_DEFS.some(d => filterSel[d.key].size);
+}
+
+function computeFilterOptions() {
+  const s = searchText();
+  FILTER_DEFS.forEach(d => {
+    const counts = new Map();
+    allRecords.forEach(r => { if (passes(r, d.key, s)) { const v = fval(d, r); counts.set(v, (counts.get(v) || 0) + 1); } });
+    filterOpts[d.key] = [...counts].map(([v, n]) => ({v, n, label: v === BLANK ? '(blank)' : v}))
+      .sort((a, b) => a.v === BLANK ? 1 : b.v === BLANK ? -1 : d.numeric ? a.v - b.v : a.label.localeCompare(b.label));
+  });
+}
+
+function pruneFilterSelections() {
+  let dropped = false;
+  FILTER_DEFS.forEach(d => {
+    const avail = new Set(filterOpts[d.key].map(o => o.v));
+    [...filterSel[d.key]].forEach(v => { if (!avail.has(v)) { filterSel[d.key].delete(v); dropped = true; } });
+  });
+  return dropped;
+}
+
+// Build the filter controls once
+function initFilters() {
+  const host = document.getElementById('ms-host');
+  host.innerHTML = FILTER_DEFS.map(d => `
+    <div class="ms" data-key="${d.key}">
+      <label>${d.label}</label>
+      <button type="button" class="ms-btn" aria-haspopup="true" aria-expanded="false" aria-label="${d.label} filter"><span class="ms-text">All</span></button>
+      <div class="ms-panel" hidden>
+        <input type="text" class="ms-search" placeholder="Search ${d.label.toLowerCase()}…" aria-label="Search ${d.label.toLowerCase()} options">
+        <div class="ms-top"><span class="ms-hint"></span><button type="button" class="ms-clear">Clear</button></div>
+        <div class="ms-list"></div>
+      </div>
+    </div>`).join('');
+
+  const panelOf = el => el.closest('.ms');
+  const closeAll = except => host.querySelectorAll('.ms').forEach(m => {
+    if (m === except) return;
+    m.querySelector('.ms-panel').hidden = true;
+    m.querySelector('.ms-btn').setAttribute('aria-expanded', 'false');
+  });
+
+  host.addEventListener('click', e => {
+    const btn = e.target.closest('.ms-btn');
+    if (btn) {
+      const m = panelOf(btn), panel = m.querySelector('.ms-panel');
+      closeAll(m);
+      panel.hidden = !panel.hidden;
+      btn.setAttribute('aria-expanded', String(!panel.hidden));
+      if (!panel.hidden) {
+        // keep the panel on screen when the control sits near the right edge
+        panel.style.left = ''; panel.style.right = '';
+        if (panel.getBoundingClientRect().right > window.innerWidth - 8) { panel.style.left = 'auto'; panel.style.right = '0'; }
+        const s = panel.querySelector('.ms-search'); if (s.offsetParent) s.focus();
+      }
+      return;
+    }
+    const clr = e.target.closest('.ms-clear');
+    if (clr) {
+      const key = panelOf(clr).dataset.key;
+      filterSel[key].clear();
+      refreshFilters(null); applyFilters();
+    }
+  });
+
+  host.addEventListener('change', e => {
+    const cb = e.target.closest('input[type=checkbox]');
+    if (!cb) return;
+    const key = panelOf(cb).dataset.key, set = filterSel[key];
+    if (cb.checked) set.add(cb.dataset.v); else set.delete(cb.dataset.v);
+    refreshFilters(key);   // this filter's own list does not change when you tick it
+    applyFilters();
+  });
+
+  host.addEventListener('input', e => {
+    const s = e.target.closest('.ms-search');
+    if (!s) return;
+    applyOptionSearch(panelOf(s));
+  });
+
+  document.addEventListener('click', e => { if (!e.target.closest('.ms')) closeAll(null); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAll(null); });
+}
+
+function applyOptionSearch(m) {
+  const q = m.querySelector('.ms-search').value.toLowerCase();
+  m.querySelectorAll('.ms-opt').forEach(o => { o.style.display = o.textContent.toLowerCase().includes(q) ? '' : 'none'; });
+}
+
+function renderFilterList(d) {
+  const m = document.querySelector(`.ms[data-key="${d.key}"]`);
+  m.style.display = d.present ? '' : 'none';
+  const opts = filterOpts[d.key], sel = filterSel[d.key];
+  m.querySelector('.ms-list').innerHTML = opts.map(o =>
+    `<label class="ms-opt"><input type="checkbox" data-v="${esc(o.v)}"${sel.has(o.v) ? ' checked' : ''}><span class="ms-lbl">${esc(o.label)}</span><span class="ms-n">${o.n}</span></label>`
+  ).join('') || '<div class="ms-empty">No options with the current filters.</div>';
+  m.querySelector('.ms-search').style.display = opts.length > 8 ? '' : 'none';
+  m.querySelector('.ms-hint').textContent = opts.length + (opts.length === 1 ? ' option' : ' options');
+  applyOptionSearch(m);
+}
+
+function updateFilterButton(d) {
+  const m = document.querySelector(`.ms[data-key="${d.key}"]`), sel = [...filterSel[d.key]];
+  const name = v => v === BLANK ? '(blank)' : v;
+  const btn = m.querySelector('.ms-btn');
+  m.querySelector('.ms-text').textContent = !sel.length ? 'All' : sel.length <= 2 ? sel.map(name).join(', ') : sel.length + ' selected';
+  btn.classList.toggle('active', sel.length > 0);
+}
+
+// Recompute what each filter offers (dropping selections that are no longer possible), then redraw
+function refreshFilters(keepListKey) {
+  for (let i = 0; i < 6; i++) { computeFilterOptions(); if (!pruneFilterSelections()) break; }
+  FILTER_DEFS.forEach(d => { if (d.key !== keepListKey) renderFilterList(d); updateFilterButton(d); });
+  document.getElementById('clear-filters').style.display = anyFilterActive() ? '' : 'none';
+}
+
+function clearAllFilters() {
+  FILTER_DEFS.forEach(d => filterSel[d.key].clear());
+  document.getElementById('f-search').value = '';
+  refreshFilters(null);
+  applyFilters();
+}
+
+function onSearchInput() { refreshFilters(null); applyFilters(); }
+
+function populateFilters() {
+  FILTER_DEFS.forEach(d => { d.present = allRecords.some(r => d.get(r)); });
+  refreshFilters(null);
 }
 
 function applyFilters() {
@@ -715,14 +954,14 @@ function renderStats(rec) {
   const noCoords = rec.length - coords.length;
   const coordInfo = document.getElementById('map-coord-info');
   if (coords.length === 0 && rec.length > 0) {
-    coordInfo.textContent = '⚠ no coordinates found — check column names (expected: latitude, longitude)';
-    coordInfo.style.color = '#8b4513';
+    coordInfo.textContent = 'No coordinates found — check column names (expected: latitude, longitude)';
+    coordInfo.style.color = '#8c2f1b';
   } else if (noCoords > 0) {
-    coordInfo.textContent = `${noCoords} record(s) without coordinates`;
-    coordInfo.style.color = '#6b6558';
+    coordInfo.textContent = `${coords.length} plotted · ${noCoords} without coordinates`;
+    coordInfo.style.color = '#675a45';
   } else {
     coordInfo.textContent = `${coords.length} points plotted`;
-    coordInfo.style.color = '#2d5a3d';
+    coordInfo.style.color = '#675a45';
   }
 }
 
@@ -745,7 +984,7 @@ function renderTaxaDrilldown(baseRec) {
   const bc = document.getElementById('taxa-breadcrumb');
   if (taxaFilters.length) {
     bc.innerHTML = taxaFilters.map((f,i) =>
-      `<span class="taxa-crumb" onclick="taxaDrillTo(${i})">${f.value}</span>
+      `<span class="taxa-crumb" onclick="taxaDrillTo(${i})">${esc(f.value)}</span>
        ${i < taxaFilters.length-1 ? '<span class="taxa-sep">›</span>' : ''}`
     ).join('') + '<span class="taxa-sep">›</span>';
   } else {
@@ -765,15 +1004,15 @@ function renderTaxaDrilldown(baseRec) {
     type: 'doughnut',
     data: {
       labels: keys,
-      datasets: [{data: vals, backgroundColor: colors, borderWidth: 2, borderColor: '#faf8f4'}]
+      datasets: [{data: vals, backgroundColor: colors, borderWidth: 1.5, borderColor: PAPER}]
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       cutout: '52%',
       plugins: {
-        legend: {display: true, position: 'right', labels: {font:{family:'DM Mono',size:9}, color:'#6b6558', boxWidth:10, padding:6}},
+        legend: {display: true, position: 'right', labels: {font:{size:13}, color:INK, boxWidth:11, padding:6}},
         tooltip: {
-          titleFont:{family:'DM Sans',size:11}, bodyFont:{family:'DM Mono',size:10},
           callbacks: { label: c => `${c.label}: ${c.raw} records` }
         }
       },
@@ -816,8 +1055,36 @@ function setMapMode(mode) {
   applyFilters();
 }
 
-function renderMap(rec) {
-  markerLayer.clearLayers();
+// Legend starts collapsed on narrow maps (it would cover them); the viewer's choice is kept afterwards
+let legendOpen;
+function legendIsCollapsed() {
+  return legendOpen === undefined ? document.getElementById('map').clientWidth < 600 : !legendOpen;
+}
+function toggleLegend() {
+  legendOpen = legendIsCollapsed();
+  document.getElementById('map-legend').classList.toggle('collapsed', !legendOpen);
+}
+// Until the viewer picks open/closed, follow the map width (rotating a phone, resizing the window)
+window.addEventListener('resize', () => {
+  if (legendOpen === undefined) document.getElementById('map-legend').classList.toggle('collapsed', legendIsCollapsed());
+});
+
+function toggleCluster() {
+  clusterOn = !clusterOn;
+  document.getElementById('btn-cluster').classList.toggle('active', clusterOn);
+  renderMap(currentFilteredRec, true);
+}
+
+function precisionLabel(r) {
+  const p = (r.coord_precision || '').toLowerCase();
+  if (/proxy|approx/.test(p)) return 'Proxy';
+  if (/exact/.test(p)) return 'Exact';
+  return 'Unknown';
+}
+
+function renderMap(rec, keepView) {
+  [clusterLayer, plainLayer].forEach(l => { l.clearLayers(); leafMap.removeLayer(l); });
+  markerLayer = clusterOn ? clusterLayer : plainLayer;
   if (heatLayer) { leafMap.removeLayer(heatLayer); heatLayer = null; }
   document.getElementById('map-legend').style.display = 'none';
 
@@ -829,45 +1096,59 @@ function renderMap(rec) {
     heatLayer.addTo(leafMap);
   } else {
     const colorBy = document.getElementById('color-by').value;
-    const keyFn = r => ({phylum:r.phylum, family:r.family, pub:r.source_label, pubtype:r.pub_type}[colorBy]||r.phylum);
+    const keyFn = r => ({phylum:r.phylum, family:r.family, pub:r.source_label, pubtype:r.pub_type,
+                         island:r.island||'unknown', precision:precisionLabel(r)}[colorBy]||r.phylum);
     const allVals = withCoords.map(keyFn);
+    let anyProxy = false;
 
-    withCoords.forEach(r => {
+    const markers = withCoords.map(r => {
       const col = colorFor(keyFn(r), allVals);
+      const proxy = precisionLabel(r) === 'Proxy';
+      if (proxy) anyProxy = true;
+      // filled disc = exact/unknown coordinates, hollow ring = proxy coordinates
+      const look = proxy
+        ? `background:#f4eedf;border:2.5px solid ${col}`
+        : `background:${col};border:1.5px solid #f4eedf;outline:0.5px solid #3a3226`;
       const icon = L.divIcon({
         className:'',
-        html:`<div style="width:11px;height:11px;background:${col};border:2px solid rgba(255,255,255,0.85);border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.35)"></div>`,
-        iconSize:[11,11], iconAnchor:[5,5]
+        html:`<div style="width:12px;height:12px;${look};border-radius:50%"></div>`,
+        iconSize:[12,12], iconAnchor:[6,6]
       });
       const popup = `
-        <b style="font-family:'DM Sans',sans-serif;font-style:italic">${r.name_accepted||'—'}</b><br>
-        ${r.name_used !== r.name_accepted ? `<span style="font-size:11px;color:#6b6558">as: <i>${r.name_used}</i></span><br>` : ''}
-        <span style="font-size:11px;font-family:'DM Mono',monospace;color:#6b6558">
-          ${[r.family,r.phylum].filter(Boolean).join(' · ')}<br>
-          ${r.source_label||''} (${r.year||'?'})<br>
-          ${r.coordinates_original ? r.coordinates_original+'<br>' : ''}
-          lat ${r.latitude.toFixed(4)}, lon ${r.longitude.toFixed(4)}
+        <b style="font-size:1.05em;font-style:italic">${esc(r.name_accepted)||'—'}</b><br>
+        ${r.name_used !== r.name_accepted ? `<span style="font-size:0.9em;color:#675a45">as: <i>${esc(r.name_used)}</i></span><br>` : ''}
+        <span style="font-size:0.9em;color:#675a45">
+          ${esc([r.family,r.phylum].filter(Boolean).join(' · '))}<br>
+          ${esc(r.source_label)} (${r.year||'?'})<br>
+          ${r.island ? esc(r.island)+'<br>' : ''}
+          ${r.depth_label ? 'depth: '+esc(r.depth_label)+'<br>' : ''}
+          ${r.coordinates_original ? esc(r.coordinates_original)+'<br>' : ''}
+          lat ${r.latitude.toFixed(4)}, lon ${r.longitude.toFixed(4)}${r.coord_precision ? ' ('+esc(precisionLabel(r).toLowerCase())+')' : ''}
         </span>`;
-      L.marker([r.latitude, r.longitude], {icon})
-       .bindPopup(popup, {maxWidth:230})
-       .addTo(markerLayer);
+      return L.marker([r.latitude, r.longitude], {icon}).bindPopup(popup, {maxWidth:230});
     });
+    if (clusterOn) markerLayer.addLayers(markers);
+    else markers.forEach(m => m.addTo(markerLayer));
+    markerLayer.addTo(leafMap);
 
     // legend
     const uVals = [...new Set(allVals)].sort();
     if (uVals.length <= 18) {
       const leg = document.getElementById('map-legend');
-      leg.innerHTML = uVals.map(v=>`
+      leg.innerHTML = '<div class="leg-head" onclick="toggleLegend()"><span>Legend</span></div><div class="leg-body">' +
+        uVals.map(v=>`
         <div class="leg-item">
           <div class="leg-dot" style="background:${colorFor(v,allVals)}"></div>
-          <span>${v||'unknown'}</span>
-        </div>`).join('');
+          <span>${esc(v)||'unknown'}</span>
+        </div>`).join('') +
+        (anyProxy && colorBy !== 'precision' ? '<div class="leg-item" style="margin-top:4px;font-style:italic"><div class="leg-dot" style="background:#f4eedf;border:2px solid #3a3226"></div><span>proxy coordinates</span></div>' : '') +
+        '</div>';
+      leg.classList.toggle('collapsed', legendIsCollapsed());
       leg.style.display = 'block';
     }
   }
 
-  const group = L.featureGroup(markerLayer.getLayers());
-  if (group.getLayers().length) leafMap.fitBounds(group.getBounds().pad(0.12));
+  if (!keepView) leafMap.fitBounds(L.latLngBounds(withCoords.map(r=>[r.latitude,r.longitude])).pad(0.2));
 }
 
 // ── CHART OPTIONS ─────────────────────────────────────────────────────────────
@@ -875,18 +1156,11 @@ const COPTS = {
   responsive:true,
   plugins:{
     legend:{display:false},
-    tooltip:{titleFont:{family:'DM Sans',size:11},bodyFont:{family:'DM Mono',size:10}}
+    tooltip:{backgroundColor:INK,titleColor:PAPER,bodyColor:PAPER,cornerRadius:0}
   },
   scales:{
-    x:{ticks:{font:{family:'DM Mono',size:9},color:'#6b6558'},grid:{color:'rgba(0,0,0,.04)'}},
-    y:{ticks:{font:{family:'DM Mono',size:9},color:'#6b6558'},grid:{color:'rgba(0,0,0,.05)'},beginAtZero:true}
-  }
-};
-const COPTS_PIE = {
-  responsive:true,
-  plugins:{
-    legend:{display:true,labels:{font:{family:'DM Mono',size:9},color:'#6b6558',boxWidth:10,padding:7}},
-    tooltip:{titleFont:{family:'DM Sans',size:11},bodyFont:{family:'DM Mono',size:10}}
+    x:{ticks:{font:{size:13},color:INK_MUTED},grid:{display:false},border:{color:INK}},
+    y:{ticks:{font:{size:13},color:INK_MUTED},grid:{color:RULE},border:{color:INK},beginAtZero:true}
   }
 };
 
@@ -900,10 +1174,14 @@ function renderCharts(rec) {
   const ptMap={};
   rec.forEach(r=>{ if(r.pub_type) ptMap[r.pub_type]=(ptMap[r.pub_type]||0)+1; });
   const ptKeys=Object.keys(ptMap);
+  // horizontal bars read better than a pie when one type (usually "article") dominates
+  ptKeys.sort((a,b)=>ptMap[b]-ptMap[a]);
   charts['pubtype']=new Chart(document.getElementById('chart-pubtype'),{
-    type:'pie',
-    data:{labels:ptKeys,datasets:[{data:ptKeys.map(k=>ptMap[k]),backgroundColor:ptKeys.map((_,i)=>PALETTE[(i+4)%PALETTE.length]),borderWidth:2,borderColor:'#faf8f4'}]},
-    options:COPTS_PIE
+    type:'bar',
+    data:{labels:ptKeys,datasets:[{data:ptKeys.map(k=>ptMap[k]),backgroundColor:INK,borderRadius:0,barPercentage:0.6}]},
+    options:{...COPTS,indexAxis:'y',
+      plugins:{...COPTS.plugins,tooltip:{...COPTS.plugins.tooltip,callbacks:{label:c=>`${c.raw} records`}}},
+      scales:{x:{...COPTS.scales.y,beginAtZero:true},y:{...COPTS.scales.x}}}
   });
 
   // 2. RECORDS PER YEAR
@@ -913,7 +1191,7 @@ function renderCharts(rec) {
   const yrKeys=Object.keys(yrMap).sort();
   charts['time']=new Chart(document.getElementById('chart-time'),{
     type:'bar',
-    data:{labels:yrKeys,datasets:[{data:yrKeys.map(y=>yrMap[y]),backgroundColor:'#2d5a3d',borderRadius:3,barPercentage:0.7}]},
+    data:{labels:yrKeys,datasets:[{data:yrKeys.map(y=>yrMap[y]),backgroundColor:INK,borderRadius:0,barPercentage:0.7}]},
     options:{...COPTS}
   });
 
@@ -925,7 +1203,7 @@ function renderCharts(rec) {
   const cKeys=Object.keys(cyrMap).sort();
   charts['cumul']=new Chart(document.getElementById('chart-cumul'),{
     type:'line',
-    data:{labels:cKeys,datasets:[{data:cKeys.map(k=>cyrMap[k]),borderColor:'#8b4513',backgroundColor:'rgba(139,69,19,.10)',fill:true,tension:0.2,pointBackgroundColor:'#8b4513',pointRadius:4}]},
+    data:{labels:cKeys,datasets:[{data:cKeys.map(k=>cyrMap[k]),borderColor:INK,borderWidth:1.5,backgroundColor:'rgba(58,50,38,.08)',fill:true,tension:0,pointBackgroundColor:PAPER,pointBorderColor:INK,pointBorderWidth:1.5,pointRadius:3}]},
     options:{...COPTS,plugins:{...COPTS.plugins,tooltip:{callbacks:{label:c=>`${c.raw} species total`}}}}
   });
 
@@ -934,9 +1212,10 @@ function renderCharts(rec) {
   dc('accum');
   const spPubCount = {};
   rec.forEach(r => {
-    if (r.name_accepted && r.publication_id) {
+    const pk = pubKey(r);
+    if (r.name_accepted && pk) {
       if (!spPubCount[r.name_accepted]) spPubCount[r.name_accepted] = new Set();
-      spPubCount[r.name_accepted].add(r.publication_id);
+      spPubCount[r.name_accepted].add(pk);
     }
   });
   // build frequency distribution
@@ -956,8 +1235,8 @@ function renderCharts(rec) {
       labels: fKeys.map(k => k === 1 ? '1 pub' : k + ' pubs'),
       datasets: [{
         data: fVals,
-        backgroundColor: fKeys.map(k => k === 1 ? '#b5703a' : '#2d5a3d'),
-        borderRadius: 3, barPercentage: 0.75
+        backgroundColor: fKeys.map(k => k === 1 ? '#8c2f1b' : INK),
+        borderRadius: 0, barPercentage: 0.75
       }]
     },
     options: {
@@ -970,8 +1249,8 @@ function renderCharts(rec) {
         }}
       },
       scales: {
-        x: { ...COPTS.scales.x, title: { display: true, text: 'number of publications', font: { family: 'DM Mono', size: 8 }, color: '#6b6558' }},
-        y: { ...COPTS.scales.y, title: { display: true, text: 'number of species',      font: { family: 'DM Mono', size: 8 }, color: '#6b6558' }}
+        x: { ...COPTS.scales.x, title: { display: true, text: 'number of publications', font: { size: 12, style: 'italic' }, color: INK_MUTED }},
+        y: { ...COPTS.scales.y, title: { display: true, text: 'number of species',      font: { size: 12, style: 'italic' }, color: INK_MUTED }}
       }
     }
   });
@@ -986,20 +1265,58 @@ function renderCharts(rec) {
   rec.forEach(r=>{ if(r.month>=1&&r.month<=12) mCounts[r.month-1]++; });
   charts['month']=new Chart(document.getElementById('chart-month'),{
     type:'bar',
-    data:{labels:MONTHS,datasets:[{data:mCounts,backgroundColor:'#1a3a5c',borderRadius:3,barPercentage:0.75}]},
+    data:{labels:MONTHS,datasets:[{data:mCounts,backgroundColor:'#1f4e5f',borderRadius:0,barPercentage:0.75}]},
     options:{...COPTS}
   });
 
   // 6. PUBLICATIONS PER YEAR
   dc('pubyear');
   const pyMap={};
-  rec.forEach(r=>{ if(r.year&&r.publication_id){ if(!pyMap[r.year]) pyMap[r.year]=new Set(); pyMap[r.year].add(r.publication_id); }});
+  rec.forEach(r=>{ const pk=pubKey(r); if(r.year&&pk){ if(!pyMap[r.year]) pyMap[r.year]=new Set(); pyMap[r.year].add(pk); }});
   const pyKeys=Object.keys(pyMap).sort();
   charts['pubyear']=new Chart(document.getElementById('chart-pubyear'),{
     type:'bar',
-    data:{labels:pyKeys,datasets:[{data:pyKeys.map(k=>pyMap[k].size),backgroundColor:'#3a6b5a',borderRadius:3,barPercentage:0.7}]},
+    data:{labels:pyKeys,datasets:[{data:pyKeys.map(k=>pyMap[k].size),backgroundColor:'#1f4e5f',borderRadius:0,barPercentage:0.7}]},
     options:{...COPTS}
   });
+
+  // 8. DEPTH BANDS (shallow at the top, deep at the bottom)
+  dc('depth');
+  const BANDS = ['Intertidal','< 10 m','10–30 m','30–100 m','100–300 m','300–1000 m','> 1000 m'];
+  const bandOf = r => r.depth_intertidal ? 0 : r.depth_m < 10 ? 1 : r.depth_m < 30 ? 2 : r.depth_m < 100 ? 3 : r.depth_m < 300 ? 4 : r.depth_m < 1000 ? 5 : 6;
+  const dCounts = Array(BANDS.length).fill(0);
+  let noDepth = 0;
+  rec.forEach(r => {
+    if (r.depth_intertidal || (typeof r.depth_m === 'number' && isFinite(r.depth_m))) dCounts[bandOf(r)]++;
+    else noDepth++;
+  });
+  charts['depth'] = new Chart(document.getElementById('chart-depth'), {
+    type: 'bar',
+    data: {labels: BANDS, datasets: [{data: dCounts, backgroundColor: '#1f4e5f', borderRadius: 0, barPercentage: 0.7}]},
+    options: {...COPTS, indexAxis: 'y', maintainAspectRatio: false,
+      plugins: {...COPTS.plugins, tooltip: {...COPTS.plugins.tooltip, callbacks: {label: c => `${c.raw} records`}}},
+      scales: {x: {...COPTS.scales.y, beginAtZero: true}, y: {...COPTS.scales.x}}}
+  });
+  document.getElementById('depth-hint').textContent = dCounts.some(n => n)
+    ? `Ranges such as 5–7 m use their midpoint. ${noDepth} of ${rec.length} records have no depth.`
+    : 'No depth data found. Add a “depth” column (metres, a range such as 5-7, or “intertidal”).';
+
+  // 9. RECORDS BY ISLAND (top 12)
+  dc('island');
+  const isl = {}; let noIsl = 0;
+  rec.forEach(r => { if (r.island) isl[r.island] = (isl[r.island] || 0) + 1; else noIsl++; });
+  const iKeys = Object.keys(isl).sort((a,b) => isl[b] - isl[a]);
+  const iTop = iKeys.slice(0, 12);
+  charts['island'] = new Chart(document.getElementById('chart-island'), {
+    type: 'bar',
+    data: {labels: iTop, datasets: [{data: iTop.map(k => isl[k]), backgroundColor: INK, borderRadius: 0, barPercentage: 0.7}]},
+    options: {...COPTS, indexAxis: 'y', maintainAspectRatio: false,
+      plugins: {...COPTS.plugins, tooltip: {...COPTS.plugins.tooltip, callbacks: {label: c => `${c.raw} records`}}},
+      scales: {x: {...COPTS.scales.y, beginAtZero: true}, y: {...COPTS.scales.x}}}
+  });
+  document.getElementById('island-hint').textContent = iKeys.length
+    ? `${iKeys.length > 12 ? 'Top 12 of ' + iKeys.length + ' islands shown. ' : ''}${noIsl} of ${rec.length} records have no island.`
+    : 'No island data found. Add an “island” column.';
 
   // 7. SPECIES / PUBLICATION COVERAGE (right panel — dynamic height)
   dc('pub-coverage');
@@ -1020,7 +1337,7 @@ function renderCharts(rec) {
     type:'bar',
     data:{
       labels:pcKeys.map(s=>s.length>18?s.slice(0,17)+'…':s),
-      datasets:[{data:pcKeys.map(k=>pubSp[k].size),backgroundColor:pcKeys.map((_,i)=>PALETTE[i%PALETTE.length]),borderRadius:3,barPercentage:0.65}]
+      datasets:[{data:pcKeys.map(k=>pubSp[k].size),backgroundColor:INK,borderRadius:0,barPercentage:0.65}]
     },
     options:{
       ...COPTS,
@@ -1032,6 +1349,87 @@ function renderCharts(rec) {
       }}}
     }
   });
+}
+
+// ── DATA NOTES ────────────────────────────────────────────────────────────────
+// true when a and b differ by exactly one inserted, deleted or changed character
+function oneEditApart(a, b) {
+  if (a === b || Math.abs(a.length - b.length) > 1) return false;
+  let i = 0, j = 0, edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    if (++edits > 1) return false;
+    if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+  }
+  return edits + (a.length - i) + (b.length - j) === 1;
+}
+
+function renderDataNotes(rec) {
+  const hasCoords = r => isFinite(r.latitude) && isFinite(r.longitude);
+  const hasAny = f => rec.some(r => r[f]);
+  const rowHtml = r =>
+    `<div><span class="dq-row">row ${r._row || '?'}</span>${esc(r.name_accepted || r.name_used || r.genus || '(no name)')}` +
+    `${r.source_label ? ' · ' + esc(r.source_label) : ''}${r.year ? ' (' + r.year + ')' : ''}${r.island ? ' · ' + esc(r.island) : ''}</div>`;
+  const items = [];
+  const check = (title, list, hint, info) => items.push({title, n:list.length, rows:list.map(rowHtml), hint, info});
+
+  check('Rows with spreadsheet errors (#VALUE!, #N/A…)', rec.filter(r => r._error),
+    'A formula in the sheet returned an error. These rows are counted as records but carry no usable data, so they also inflate the totals.');
+  check('Records without coordinates', rec.filter(r => !hasCoords(r)),
+    'Counted in the totals, but they cannot appear on the map.');
+  check('Coordinates out of range', rec.filter(r => hasCoords(r) && (Math.abs(r.latitude) > 90 || Math.abs(r.longitude) > 180)),
+    'Latitude must be within ±90 and longitude within ±180. Look for swapped or mistyped values.');
+  check('Records without a source', rec.filter(r => !r.source_label && isNA(r.publication_id)),
+    'No citation and no publication ID, so they are left out of the publication charts.');
+  check('Records without a year', rec.filter(r => !r.year), '');
+  check('Records without an accepted species name', rec.filter(r => !r.name_accepted),
+    'The row is kept (a genus or phylum is present) but is not counted as a species.');
+  if (hasAny('island')) check('Records without an island', rec.filter(r => !r.island), '');
+  if (hasAny('depth_label')) check('Records without a depth', rec.filter(r => !r.depth_label), '');
+  if (hasAny('coord_precision')) {
+    check('Records without a coordinate precision', rec.filter(r => hasCoords(r) && !r.coord_precision), '');
+    check('Proxy coordinates', rec.filter(r => precisionLabel(r) === 'Proxy'),
+      'For information: drawn as hollow rings on the map.', true);
+  }
+
+  const groups = {};
+  rec.filter(r => hasCoords(r) && r.name_accepted).forEach(r => {
+    const key = [r.name_accepted, r.latitude, r.longitude, r.source_label, r.year, r.month, r.day].join('|');
+    (groups[key] = groups[key] || []).push(r);
+  });
+  check('Possible duplicate rows', Object.values(groups).filter(g => g.length > 1).flat(),
+    'Same species, coordinates, source and date appear more than once.');
+
+  [['island','island'],['genus','genus'],['family','family'],['order','order'],['class','class'],['phylum','phylum']].forEach(([f, label]) => {
+    const counts = {};
+    rec.forEach(r => { if (r[f]) counts[r[f]] = (counts[r[f]] || 0) + 1; });
+    const vals = Object.keys(counts), pairs = [];
+    for (let i = 0; i < vals.length; i++) for (let j = i + 1; j < vals.length; j++) {
+      const a = vals[i].toLowerCase(), b = vals[j].toLowerCase();
+      if (Math.min(a.length, b.length) >= 5 && (a === b || oneEditApart(a, b))) pairs.push([vals[i], vals[j]]);
+    }
+    if (pairs.length) items.push({
+      title: 'Possible spelling variants: ' + label, n: pairs.length,
+      rows: pairs.map(([a, b]) => `<div>${esc(a)} (${counts[a]}) &nbsp;~&nbsp; ${esc(b)} (${counts[b]})</div>`),
+      hint: 'Names that differ by a single character may be the same ' + label + ' spelled two ways.'
+    });
+  });
+
+  const issues = items.filter(i => i.n > 0);
+  const attention = issues.filter(i => !i.info).length;
+  document.getElementById('dq-summary').innerHTML = attention
+    ? `<b>${attention}</b> ${attention === 1 ? 'item needs' : 'items need'} attention`
+    : 'no problems found';
+  const hasRows = rec.some(r => r._row);
+  document.getElementById('dq-body').innerHTML = issues.length
+    ? issues.map(i => `
+        <details class="dq-item">
+          <summary><span class="dq-n ${i.info ? 'info' : ''}">${i.n}</span><span class="dq-title">${esc(i.title)}</span></summary>
+          ${i.hint ? `<div class="dq-hint">${esc(i.hint)}</div>` : ''}
+          <div class="dq-list">${i.rows.slice(0, 60).join('')}${i.rows.length > 60 ? `<div class="dq-ok">…and ${i.rows.length - 60} more</div>` : ''}</div>
+        </details>`).join('') +
+      (hasRows ? '<div class="dq-hint" style="margin-left:0">Row numbers match your sheet (row 1 is the header).</div>' : '')
+    : '<p class="dq-ok">Nothing to report: every record has coordinates, a source and a year.</p>';
 }
 
 // ── OVERLAY ───────────────────────────────────────────────────────────────────
