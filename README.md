@@ -40,7 +40,11 @@ Hosted at: `https://yourusername.github.io/your-repo-name/` *(replace with your 
 
 The dashboard fetches fresh data every time the page is loaded. No manual exports needed.
 
-> ⚠ This only works when the dashboard is served over `https://` (i.e. via GitHub Pages). It will not work when opening the HTML file directly from your computer due to browser security restrictions (CORS). Use the Paste CSV method in that case.
+Any Google Sheets link is accepted and converted automatically: the published CSV link, the `pubhtml` link, or a normal sheet link (`…/edit#gid=0`) as long as the sheet is shared as *Anyone with the link*.
+
+**Bookmark it.** Once a sheet is loaded, the address bar becomes `…/index.html?sheet=<link>`. Bookmark that address and it opens the same data on any device. You can also share it: anyone can use their own sheet by putting their link after `?sheet=`. Optional extras: `&title=My%20study` and `&target=3`.
+
+> ⚠ Loading a sheet needs the dashboard to be served over `http(s)://` (GitHub Pages, or `py -m http.server` locally). It will not work when opening the HTML file directly from your computer (browser security). Use the Paste CSV method in that case.
 
 ### Option B — Paste CSV (works locally, no hosting needed)
 
@@ -118,7 +122,7 @@ To update the dashboard file later, simply upload the new `index.html` to the re
 
 - Your Google Sheet stays **private** in your Google Drive at all times.
 - The published CSV URL exposes data only to requests that know the exact URL — it does not make your sheet discoverable or searchable.
-- The URL you configure is stored in your **browser's localStorage** only — it is never written into the HTML file and never uploaded to GitHub.
+- The URL you configure is stored in your **browser's localStorage** and shown in the address bar as `?sheet=…` (so you can bookmark it). It is never written into the HTML file and never uploaded to GitHub. Anyone you send that bookmarked address to can see the data it points to.
 - The dashboard itself (the HTML file on GitHub) contains only the demo data and the visualisation code — no real data, no credentials.
 
 ---
@@ -127,7 +131,7 @@ To update the dashboard file later, simply upload the new `index.html` to the re
 
 - Single self-contained HTML file — no build step, no npm, no framework.
 - External libraries loaded from CDN: [Leaflet](https://leafletjs.com/) (map), [Chart.js](https://www.chartjs.org/) (charts), [PapaParse](https://www.papaparse.com/) (CSV parsing), [Leaflet.heat](https://github.com/Leaflet/Leaflet.heat) (heatmap).
-- Map tiles from [CartoDB](https://carto.com/basemaps/) via OpenStreetMap data.
+- Map tiles need no API key: [OpenStreetMap](https://www.openstreetmap.org/copyright) (default), plus Esri Ocean and Esri Satellite, switchable from the map's layer control. (CARTO's free tiles were removed: they now show an "API KEY REQUIRED" watermark.)
 - Fonts from Google Fonts (DM Serif Display, DM Mono, DM Sans).
 - No data is sent to any external server. All processing happens locally in the browser.
 
